@@ -227,6 +227,12 @@ export default function AdminDashboard() {
   const [turfModal, setTurfModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [turfForm, setTurfForm] = useState<TurfForm>(emptyTurf);
+  const [inlineOwner, setInlineOwner] = useState({
+    name: "",
+    email: "",
+    password: "",
+    phone: "",
+  });
   const [ownerModal, setOwnerModal] = useState(false);
   const [ownerForm, setOwnerForm] = useState({
     name: "",
@@ -246,6 +252,7 @@ export default function AdminDashboard() {
   const openAddTurf = () => {
     setEditingId(null);
     setTurfForm(emptyTurf);
+    setInlineOwner({ name: "", email: "", password: "", phone: "" });
     setTurfModal(true);
   };
   const openEditTurf = (t: Turf) => {
@@ -283,7 +290,18 @@ export default function AdminDashboard() {
       advanceAmount: Number(turfForm.advanceAmount),
     };
     if (editingId) editTurf(editingId, turf);
-    else addTurf(turf);
+    else {
+      const createdTurf = addTurf(turf);
+      if (inlineOwner.email) {
+        createTurfOwner(
+          inlineOwner.name,
+          inlineOwner.email,
+          inlineOwner.password,
+          inlineOwner.phone,
+          createdTurf.id,
+        );
+      }
+    }
     setTurfModal(false);
   };
 
@@ -828,6 +846,78 @@ export default function AdminDashboard() {
                 helperText="This QR code will be shown to users on the payment page."
               />
             </div>
+
+            {/* Turf Owner Account (only on Add) */}
+            {!editingId && (
+              <>
+                <div className="sm:col-span-2">
+                  <div className="border-t border-border pt-4 mb-2">
+                    <p className="font-semibold text-sm flex items-center gap-1.5 mb-1">
+                      <span className="text-green-500">👤</span>
+                      Turf Owner Account
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Fill in these details to automatically create a Turf Owner
+                      login for this turf.
+                    </p>
+                  </div>
+                </div>
+                <div>
+                  <Label>Owner Name</Label>
+                  <Input
+                    className="mt-1"
+                    placeholder="e.g. Rajesh Patil"
+                    value={inlineOwner.name}
+                    onChange={(e) =>
+                      setInlineOwner((o) => ({ ...o, name: e.target.value }))
+                    }
+                    data-ocid="admin.input"
+                  />
+                </div>
+                <div>
+                  <Label>Owner Contact Number</Label>
+                  <Input
+                    className="mt-1"
+                    type="tel"
+                    placeholder="e.g. 9876543210"
+                    value={inlineOwner.phone}
+                    onChange={(e) =>
+                      setInlineOwner((o) => ({ ...o, phone: e.target.value }))
+                    }
+                    data-ocid="admin.input"
+                  />
+                </div>
+                <div>
+                  <Label>Owner Email</Label>
+                  <Input
+                    className="mt-1"
+                    type="email"
+                    placeholder="owner@email.com"
+                    value={inlineOwner.email}
+                    onChange={(e) =>
+                      setInlineOwner((o) => ({ ...o, email: e.target.value }))
+                    }
+                    data-ocid="admin.input"
+                  />
+                </div>
+                <div>
+                  <Label>Owner Password</Label>
+                  <Input
+                    className="mt-1"
+                    type="password"
+                    placeholder="Set a login password"
+                    value={inlineOwner.password}
+                    onChange={(e) =>
+                      setInlineOwner((o) => ({
+                        ...o,
+                        password: e.target.value,
+                      }))
+                    }
+                    data-ocid="admin.input"
+                  />
+                </div>
+              </>
+            )}
           </div>
           <div className="flex gap-3 mt-4">
             <Button

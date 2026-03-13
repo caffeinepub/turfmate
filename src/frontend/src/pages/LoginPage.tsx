@@ -1,13 +1,16 @@
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Eye, EyeOff, Trophy } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 import type { UserRole } from "../types";
+
+const REMEMBER_KEY = (role: UserRole) => `turfmate_remember_${role}`;
 
 export default function LoginPage() {
   const { login } = useApp();
@@ -18,6 +21,19 @@ export default function LoginPage() {
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
+
+  // Pre-fill email when role changes if remember was set
+  useEffect(() => {
+    const saved = localStorage.getItem(REMEMBER_KEY(role));
+    if (saved) {
+      setEmail(saved);
+      setRememberMe(true);
+    } else {
+      setEmail("");
+      setRememberMe(false);
+    }
+  }, [role]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -29,6 +45,12 @@ export default function LoginPage() {
     if (!ok) {
       setError("Invalid email or password for the selected role.");
       return;
+    }
+    // Save or clear remember-me
+    if (rememberMe) {
+      localStorage.setItem(REMEMBER_KEY(role), email);
+    } else {
+      localStorage.removeItem(REMEMBER_KEY(role));
     }
     if (role === "admin") navigate("/admin");
     else if (role === "turfOwner") navigate("/owner");
@@ -137,6 +159,22 @@ export default function LoginPage() {
                     {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
                 </div>
+              </div>
+
+              {/* Remember Me */}
+              <div className="flex items-center gap-2">
+                <Checkbox
+                  id="rememberMe"
+                  checked={rememberMe}
+                  onCheckedChange={(checked) => setRememberMe(!!checked)}
+                  data-ocid="login.checkbox"
+                />
+                <Label
+                  htmlFor="rememberMe"
+                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                >
+                  Remember Me
+                </Label>
               </div>
 
               {error && (

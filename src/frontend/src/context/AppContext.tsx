@@ -197,7 +197,7 @@ interface AppContextType {
     email: string,
     password: string,
   ) => boolean;
-  addTurf: (turf: Omit<Turf, "id">) => void;
+  addTurf: (turf: Omit<Turf, "id">) => Turf;
   editTurf: (id: string, updates: Partial<Turf>) => void;
   deleteTurf: (id: string) => void;
   createTurfOwner: (
@@ -313,9 +313,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return true;
   };
 
-  const addTurf = (turf: Omit<Turf, "id">) => {
+  const addTurf = (turf: Omit<Turf, "id">): Turf => {
     const newTurf: Turf = { ...turf, id: `turf-${Date.now()}` };
     setTurfs((prev) => [...prev, newTurf]);
+    return newTurf;
   };
 
   const editTurf = (id: string, updates: Partial<Turf>) => {

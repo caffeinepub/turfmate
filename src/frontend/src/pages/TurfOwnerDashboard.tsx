@@ -11,9 +11,10 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Calendar, Clock, MapPin, Moon, Sun } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Calendar, Clock, Edit2, MapPin, Moon, Save, Sun } from "lucide-react";
 import { motion } from "motion/react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useApp } from "../context/AppContext";
 import type { TimeSlot } from "../types";
@@ -27,11 +28,20 @@ export default function TurfOwnerDashboard() {
     slots,
     toggleSlotStatus,
     reopenSlot,
+    editTurf,
   } = useApp();
   const turf = turfs.find((t) => t.id === currentUser?.assignedTurfId);
   const today = new Date().toISOString().split("T")[0];
   const [date, setDate] = useState(today);
   const [dateSlots, setDateSlots] = useState<TimeSlot[]>([]);
+  const [editForm, setEditForm] = useState({
+    pricePerHour: turf?.pricePerHour ?? 0,
+    nightPricePerHour: turf?.nightPricePerHour ?? 0,
+    description: turf?.description ?? "",
+    facilities: turf?.facilities?.join(", ") ?? "",
+  });
+  const [editSaved, setEditSaved] = useState(false);
+  const imgRef = useRef<HTMLInputElement>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: getSlots identity is stable
   useEffect(() => {
@@ -123,6 +133,9 @@ export default function TurfOwnerDashboard() {
               </TabsTrigger>
               <TabsTrigger value="bookings" data-ocid="owner.tab">
                 Bookings
+              </TabsTrigger>
+              <TabsTrigger value="edit" data-ocid="owner.tab">
+                Edit Turf
               </TabsTrigger>
             </TabsList>
 
@@ -243,6 +256,147 @@ export default function TurfOwnerDashboard() {
                     No bookings for your turf yet.
                   </p>
                 )}
+              </div>
+            </TabsContent>
+
+            {/* Edit Turf Details */}
+            <TabsContent value="edit">
+              <div className="bg-white rounded-2xl p-5 border border-border shadow-sm max-w-xl">
+                <div className="flex items-center gap-2 mb-5">
+                  <Edit2 size={18} className="text-green-600" />
+                  <h2 className="font-display font-bold text-xl">
+                    Edit Turf Details
+                  </h2>
+                </div>
+                <div className="space-y-4">
+                  <div>
+                    <Label>Description</Label>
+                    <Textarea
+                      className="mt-1"
+                      value={editForm.description}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          description: e.target.value,
+                        }))
+                      }
+                      rows={3}
+                      data-ocid="owner.textarea"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Day Price/hr (₹)</Label>
+                      <Input
+                        className="mt-1"
+                        type="number"
+                        value={editForm.pricePerHour}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            pricePerHour: Number(e.target.value),
+                          }))
+                        }
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                    <div>
+                      <Label>Night Price/hr (₹)</Label>
+                      <Input
+                        className="mt-1"
+                        type="number"
+                        value={editForm.nightPricePerHour}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            nightPricePerHour: Number(e.target.value),
+                          }))
+                        }
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                  </div>
+                  <div>
+                    <Label>Facilities (comma-separated)</Label>
+                    <Input
+                      className="mt-1"
+                      value={editForm.facilities}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          facilities: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. Floodlights, Parking, Changing Rooms"
+                      data-ocid="owner.input"
+                    />
+                  </div>
+                  <div>
+                    <Label>Main Turf Image</Label>
+                    <input
+                      ref={imgRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={async (e) => {
+                        const file = e.target.files?.[0];
+                        if (!file || !turf) return;
+                        const reader = new FileReader();
+                        reader.onload = () => {
+                          editTurf(turf.id, {
+                            imageUrl: reader.result as string,
+                          });
+                        };
+                        reader.readAsDataURL(file);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => imgRef.current?.click()}
+                      className="mt-1 w-full h-24 border-2 border-dashed border-border rounded-xl flex flex-col items-center justify-center gap-1 text-muted-foreground hover:border-green-400 hover:text-green-600 transition-colors text-sm"
+                      data-ocid="owner.upload_button"
+                    >
+                      {turf?.imageUrl ? (
+                        <img
+                          src={turf.imageUrl}
+                          alt="Current"
+                          className="h-full w-full object-cover rounded-xl"
+                        />
+                      ) : (
+                        <span>Click to upload image</span>
+                      )}
+                    </button>
+                  </div>
+                  {editSaved && (
+                    <p
+                      className="text-green-600 text-sm font-medium"
+                      data-ocid="owner.success_state"
+                    >
+                      ✓ Changes saved successfully!
+                    </p>
+                  )}
+                  <Button
+                    className="bg-green-600 hover:bg-green-500 text-white w-full"
+                    onClick={() => {
+                      if (!turf) return;
+                      editTurf(turf.id, {
+                        description: editForm.description,
+                        pricePerHour: editForm.pricePerHour,
+                        nightPricePerHour: editForm.nightPricePerHour,
+                        facilities: editForm.facilities
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      });
+                      setEditSaved(true);
+                      setTimeout(() => setEditSaved(false), 3000);
+                    }}
+                    data-ocid="owner.save_button"
+                  >
+                    <Save size={15} className="mr-1" />
+                    Save Changes
+                  </Button>
+                </div>
               </div>
             </TabsContent>
           </Tabs>

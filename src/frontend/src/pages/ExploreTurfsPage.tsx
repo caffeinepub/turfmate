@@ -48,7 +48,7 @@ export default function ExploreTurfsPage() {
                 className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
               />
               <Input
-                placeholder="Search by name or location..."
+                placeholder="Explore the Best Turf"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/50 focus:bg-white/20"

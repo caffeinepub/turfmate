@@ -1,6 +1,6 @@
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Calendar, Clock, CreditCard, MapPin } from "lucide-react";
+import { Calendar, Clock, CreditCard, History, RefreshCw } from "lucide-react";
 import { motion } from "motion/react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
@@ -49,11 +49,20 @@ export default function UserDashboard() {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h1 className="font-display font-bold text-3xl">My Bookings</h1>
+            <h1 className="font-display font-bold text-3xl">My Dashboard</h1>
             <p className="text-muted-foreground mt-1">
               Welcome back, {currentUser?.fullName}
             </p>
           </motion.div>
+
+          {/* Booking History Section */}
+          <div className="mb-6 flex items-center gap-2">
+            <History size={20} className="text-green-600" />
+            <h2 className="font-display font-bold text-xl">Booking History</h2>
+            <Badge variant="secondary" className="ml-1">
+              {myBookings.length} booking{myBookings.length !== 1 ? "s" : ""}
+            </Badge>
+          </div>
 
           {myBookings.length === 0 ? (
             <div
@@ -62,6 +71,9 @@ export default function UserDashboard() {
             >
               <Calendar size={48} className="mx-auto mb-4 opacity-30" />
               <p className="text-lg font-medium">No bookings yet</p>
+              <p className="text-sm mt-1">
+                Start exploring turfs to make your first booking.
+              </p>
               <Button
                 className="mt-4 bg-green-600 hover:bg-green-500 text-white"
                 onClick={() => navigate("/explore")}
@@ -86,7 +98,7 @@ export default function UserDashboard() {
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="space-y-1.5">
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-display font-bold text-lg">
                             {b.turfName}
                           </h3>
@@ -96,6 +108,11 @@ export default function UserDashboard() {
                           {b.status === "rejected" && (
                             <Badge variant="destructive" className="text-xs">
                               Rejected
+                            </Badge>
+                          )}
+                          {b.status === "approved" && (
+                            <Badge className="bg-blue-500 text-white text-xs">
+                              Approved
                             </Badge>
                           )}
                         </div>
@@ -118,10 +135,21 @@ export default function UserDashboard() {
                             </p>
                           )}
                       </div>
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2 items-end">
                         <p className="text-xs text-muted-foreground font-mono">
                           #{b.id}
                         </p>
+                        {/* Book Again button */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="border-green-600 text-green-700 hover:bg-green-50 text-xs flex items-center gap-1"
+                          onClick={() => navigate(`/book/${b.turfId}`)}
+                          data-ocid={`dashboard.secondary_button.${i + 1}`}
+                        >
+                          <RefreshCw size={12} />
+                          Book Again
+                        </Button>
                         {b.paymentStatus !== "fullyPaid" && past && (
                           <Button
                             size="sm"
