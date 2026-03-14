@@ -95,6 +95,16 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                       </Link>
                     </Button>
                   )}
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    asChild
+                    className="text-white hover:bg-green-700/50"
+                  >
+                    <Link to="/tournaments" data-ocid="nav.link">
+                      Tournaments
+                    </Link>
+                  </Button>
                   {currentUser.role === "user" && (
                     <Button
                       variant="ghost"
@@ -184,6 +194,14 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     {dashLink.label}
                   </Link>
                 )}
+                <Link
+                  to="/tournaments"
+                  className="text-white hover:text-green-400 py-1"
+                  onClick={() => setMobileOpen(false)}
+                  data-ocid="nav.link"
+                >
+                  Tournaments
+                </Link>
                 {currentUser.role === "user" && (
                   <button
                     type="button"

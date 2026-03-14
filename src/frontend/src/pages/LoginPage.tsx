@@ -16,21 +16,32 @@ export default function LoginPage() {
   const { login } = useApp();
   const navigate = useNavigate();
   const [role, setRole] = useState<UserRole>("user");
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPwd, setShowPwd] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
 
-  // Pre-fill email when role changes if remember was set
+  const isAdmin = role === "admin";
+
+  // Pre-fill credentials when role changes if remember was set
   useEffect(() => {
     const saved = localStorage.getItem(REMEMBER_KEY(role));
     if (saved) {
-      setEmail(saved);
-      setRememberMe(true);
+      try {
+        const { id, pwd } = JSON.parse(saved);
+        setIdentifier(id || "");
+        setPassword(pwd || "");
+        setRememberMe(true);
+      } catch {
+        setIdentifier("");
+        setPassword("");
+        setRememberMe(false);
+      }
     } else {
-      setEmail("");
+      setIdentifier("");
+      setPassword("");
       setRememberMe(false);
     }
   }, [role]);
@@ -40,15 +51,22 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     await new Promise((r) => setTimeout(r, 400));
-    const ok = login(email, password, role);
+    const ok = login(identifier, password, role);
     setLoading(false);
     if (!ok) {
-      setError("Invalid email or password for the selected role.");
+      if (isAdmin) {
+        setError("Invalid Admin ID or Password.");
+      } else {
+        setError("Invalid email or password for the selected role.");
+      }
       return;
     }
-    // Save or clear remember-me
+    // Save or clear remember-me credentials
     if (rememberMe) {
-      localStorage.setItem(REMEMBER_KEY(role), email);
+      localStorage.setItem(
+        REMEMBER_KEY(role),
+        JSON.stringify({ id: identifier, pwd: password }),
+      );
     } else {
       localStorage.removeItem(REMEMBER_KEY(role));
     }
@@ -57,15 +75,9 @@ export default function LoginPage() {
     else navigate("/explore");
   };
 
-  const roleDemos: Record<UserRole, { email: string; password: string }> = {
-    admin: { email: "admin@turfmate.com", password: "admin123" },
-    turfOwner: { email: "owner1@turfmate.com", password: "owner123" },
-    user: { email: "user@turfmate.com", password: "user123" },
-  };
-
   const fillDemo = () => {
-    setEmail(roleDemos[role].email);
-    setPassword(roleDemos[role].password);
+    setIdentifier("user@turfmate.com");
+    setPassword("user123");
   };
 
   return (
@@ -127,15 +139,18 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">
+                  {isAdmin ? "Admin ID" : "Email"}
+                </Label>
                 <Input
-                  id="email"
-                  type="email"
-                  placeholder="you@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier"
+                  type={isAdmin ? "text" : "email"}
+                  placeholder={isAdmin ? "Enter Admin ID" : "you@example.com"}
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required
                   className="mt-1"
+                  autoComplete={isAdmin ? "username" : "email"}
                   data-ocid="login.input"
                 />
               </div>
@@ -149,6 +164,7 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     required
+                    autoComplete="current-password"
                     data-ocid="login.input"
                   />
                   <button
@@ -161,7 +177,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember Me */}
+              {/* Remember Me — all roles */}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="rememberMe"
@@ -204,25 +220,29 @@ export default function LoginPage() {
               </Button>
             </form>
 
-            <button
-              type="button"
-              onClick={fillDemo}
-              className="w-full text-center text-xs text-green-600 hover:text-green-800 mt-3 underline"
-              data-ocid="login.secondary_button"
-            >
-              Fill demo credentials for {role}
-            </button>
-
-            <p className="text-center text-sm text-muted-foreground mt-6">
-              Don't have an account?{" "}
-              <Link
-                to="/signup"
-                className="text-green-600 hover:underline font-medium"
-                data-ocid="login.link"
+            {role === "user" && (
+              <button
+                type="button"
+                onClick={fillDemo}
+                className="w-full text-center text-xs text-green-600 hover:text-green-800 mt-3 underline"
+                data-ocid="login.secondary_button"
               >
-                Sign Up
-              </Link>
-            </p>
+                Fill demo credentials
+              </button>
+            )}
+
+            {!isAdmin && (
+              <p className="text-center text-sm text-muted-foreground mt-6">
+                Don't have an account?{" "}
+                <Link
+                  to="/signup"
+                  className="text-green-600 hover:underline font-medium"
+                  data-ocid="login.link"
+                >
+                  Sign Up
+                </Link>
+              </p>
+            )}
           </div>
         </div>
       </motion.div>

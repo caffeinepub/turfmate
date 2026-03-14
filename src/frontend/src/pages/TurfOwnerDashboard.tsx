@@ -14,19 +14,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar,
+  ClipboardCheck,
   Clock,
   Edit2,
   MapPin,
   Moon,
   Save,
   Sun,
+  Trash2,
   TrendingUp,
+  Trophy as TrophyIcon,
+  Upload,
 } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useApp } from "../context/AppContext";
-import type { TimeSlot } from "../types";
+import type { TimeSlot, Tournament } from "../types";
 
 function OwnerRevenueContent() {
   const { currentUser, bookings } = useApp();
@@ -110,6 +114,448 @@ function OwnerRevenueContent() {
                   <td className="px-4 py-3 text-right">{e.totalBookings}</td>
                   <td className="px-4 py-3 text-right font-semibold text-green-700">
                     ₹{e.totalRevenue.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function OwnerTournamentsTab() {
+  const {
+    currentUser,
+    turfs,
+    tournaments,
+    tournamentRegistrations,
+    createTournament,
+    deleteTournament,
+  } = useApp();
+  const myTurfId = currentUser?.assignedTurfId ?? "";
+  const myTurf = turfs.find((t) => t.id === myTurfId);
+  const myTournaments = tournaments.filter(
+    (t) => t.turfId === myTurfId || t.createdBy === currentUser?.id,
+  );
+
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    location: "",
+    date: "",
+    organizerName: "",
+    winningPrize: 10000,
+    maxTeams: 8,
+    registrationEndDate: "",
+    rules: "",
+    contact1: "",
+    contact2: "",
+    entryFee: 500,
+    qrCodeUrl: "",
+  });
+  const qrRef = useRef<HTMLInputElement>(null);
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () =>
+      setForm((p) => ({ ...p, qrCodeUrl: reader.result as string }));
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.date || !form.registrationEndDate) return;
+    createTournament({
+      ...form,
+      turfId: myTurfId,
+      turfName: myTurf?.name ?? "",
+      createdBy: currentUser?.id ?? "",
+    });
+    setForm({
+      name: "",
+      location: "",
+      date: "",
+      organizerName: "",
+      winningPrize: 10000,
+      maxTeams: 8,
+      registrationEndDate: "",
+      rules: "",
+      contact1: "",
+      contact2: "",
+      entryFee: 500,
+      qrCodeUrl: "",
+    });
+    setShowForm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-bold text-xl flex items-center gap-2">
+          <TrophyIcon size={20} className="text-green-600" /> Tournaments
+        </h2>
+        <button
+          type="button"
+          className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg transition-colors"
+          onClick={() => setShowForm(!showForm)}
+          data-ocid="owner.tournaments.primary_button"
+        >
+          {showForm ? "Cancel" : "Create Tournament"}
+        </button>
+      </div>
+
+      {myTurf && (
+        <div className="text-sm text-gray-500 bg-green-50 rounded-lg px-3 py-2 border border-green-100">
+          Creating tournament for:{" "}
+          <span className="font-semibold text-green-700">{myTurf.name}</span>
+        </div>
+      )}
+
+      {showForm && (
+        <div
+          className="bg-white rounded-2xl border border-border p-5 shadow-sm"
+          data-ocid="owner.tournaments.panel"
+        >
+          <h3 className="font-semibold text-gray-800 mb-4">New Tournament</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Tournament Name *
+              </span>
+              <input
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="e.g. Summer Cup 2026"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Location
+              </span>
+              <input
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.location}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, location: e.target.value }))
+                }
+                placeholder="City / Venue"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Date of Tournament *
+              </span>
+              <input
+                type="date"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, date: e.target.value }))
+                }
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Organizer Name
+              </span>
+              <input
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.organizerName}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, organizerName: e.target.value }))
+                }
+                placeholder="Organizer"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Winning Prize (₹)
+              </span>
+              <input
+                type="number"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.winningPrize}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    winningPrize: Number(e.target.value),
+                  }))
+                }
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Max Teams
+              </span>
+              <input
+                type="number"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.maxTeams}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, maxTeams: Number(e.target.value) }))
+                }
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Registration End Date *
+              </span>
+              <input
+                type="date"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.registrationEndDate}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    registrationEndDate: e.target.value,
+                  }))
+                }
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Entry Fee (₹)
+              </span>
+              <input
+                type="number"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.entryFee}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, entryFee: Number(e.target.value) }))
+                }
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Contact Number 1
+              </span>
+              <input
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.contact1}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact1: e.target.value }))
+                }
+                placeholder="Primary"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Contact Number 2
+              </span>
+              <input
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.contact2}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact2: e.target.value }))
+                }
+                placeholder="Secondary"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
+                Upload QR Code
+              </span>
+              <input
+                ref={qrRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleQrUpload}
+              />
+              <button
+                type="button"
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm flex items-center justify-center gap-2 hover:bg-gray-50"
+                onClick={() => qrRef.current?.click()}
+                data-ocid="owner.tournaments.upload_button"
+              >
+                <Upload size={14} /> Upload QR
+              </button>
+              {form.qrCodeUrl && (
+                <img
+                  src={form.qrCodeUrl}
+                  alt="QR"
+                  className="mt-2 w-20 h-20 object-contain rounded border border-border"
+                />
+              )}
+            </div>
+            <div className="sm:col-span-2">
+              <span className="text-sm font-medium text-gray-700 block">
+                Rules and Regulations
+              </span>
+              <textarea
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm min-h-[80px] resize-y"
+                value={form.rules}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, rules: e.target.value }))
+                }
+                placeholder="Tournament rules..."
+                data-ocid="owner.tournaments.textarea"
+              />
+            </div>
+          </div>
+          <button
+            type="button"
+            className="mt-4 px-5 py-2 bg-green-600 hover:bg-green-700 text-white text-sm font-medium rounded-lg"
+            onClick={handleSubmit}
+            data-ocid="owner.tournaments.submit_button"
+          >
+            Create Tournament
+          </button>
+        </div>
+      )}
+
+      <div className="space-y-3">
+        {myTournaments.length === 0 ? (
+          <div
+            className="text-center py-10 text-gray-400"
+            data-ocid="owner.tournaments.empty_state"
+          >
+            No tournaments yet.
+          </div>
+        ) : (
+          myTournaments.map((t, idx) => (
+            <OwnerTournamentCard
+              key={t.id}
+              tournament={t}
+              index={idx + 1}
+              registrationCount={
+                tournamentRegistrations.filter((r) => r.tournamentId === t.id)
+                  .length
+              }
+              onDelete={() => deleteTournament(t.id)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function OwnerTournamentCard({
+  tournament,
+  index,
+  registrationCount,
+  onDelete,
+}: {
+  tournament: Tournament;
+  index: number;
+  registrationCount: number;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className="bg-white rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      data-ocid={`owner.tournaments.item.${index}`}
+    >
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <TrophyIcon size={16} className="text-green-600" />
+          <span className="font-semibold text-gray-800">{tournament.name}</span>
+        </div>
+        <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+          <span>
+            Date: {new Date(tournament.date).toLocaleDateString("en-IN")}
+          </span>
+          <span>Prize: ₹{tournament.winningPrize.toLocaleString()}</span>
+          <span>
+            Teams: {registrationCount}/{tournament.maxTeams}
+          </span>
+        </div>
+      </div>
+      <button
+        type="button"
+        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg flex items-center gap-1"
+        onClick={onDelete}
+        data-ocid={`owner.tournaments.delete_button.${index}`}
+      >
+        <Trash2 size={13} /> Delete
+      </button>
+    </div>
+  );
+}
+
+function OwnerTournamentRegsTab() {
+  const { currentUser, tournamentRegistrations, tournaments } = useApp();
+  const myTurfId = currentUser?.assignedTurfId ?? "";
+  const myTournamentIds = tournaments
+    .filter((t) => t.turfId === myTurfId || t.createdBy === currentUser?.id)
+    .map((t) => t.id);
+  const myRegs = tournamentRegistrations.filter((r) =>
+    myTournamentIds.includes(r.tournamentId),
+  );
+
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display font-bold text-xl flex items-center gap-2">
+        <ClipboardCheck size={20} className="text-green-600" /> Tournament
+        Registrations
+      </h2>
+      {myRegs.length === 0 ? (
+        <div
+          className="text-center py-12 text-gray-400"
+          data-ocid="owner.tournament-registrations.empty_state"
+        >
+          No team registrations yet.
+        </div>
+      ) : (
+        <div
+          className="overflow-x-auto rounded-xl border border-border"
+          data-ocid="owner.tournament-registrations.table"
+        >
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 border-b border-border">
+              <tr>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Tournament
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Team Name
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Captain
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Contact 1
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Players
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Payment
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border bg-white">
+              {myRegs.map((r, idx) => (
+                <tr
+                  key={r.id}
+                  data-ocid={`owner.tournament-registrations.row.${idx + 1}`}
+                >
+                  <td className="px-4 py-3 font-medium">{r.tournamentName}</td>
+                  <td className="px-4 py-3">{r.teamName}</td>
+                  <td className="px-4 py-3">{r.captainName}</td>
+                  <td className="px-4 py-3">{r.contact1}</td>
+                  <td className="px-4 py-3">{r.numberOfPlayers}</td>
+                  <td className="px-4 py-3">
+                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                      Paid
+                    </span>
                   </td>
                 </tr>
               ))}
@@ -238,6 +684,15 @@ export default function TurfOwnerDashboard() {
               </TabsTrigger>
               <TabsTrigger value="edit" data-ocid="owner.tab">
                 Edit Turf
+              </TabsTrigger>
+              <TabsTrigger value="tournaments" data-ocid="owner.tab">
+                <TrophyIcon size={16} className="mr-1" /> Tournaments
+              </TabsTrigger>
+              <TabsTrigger
+                value="tournament-registrations"
+                data-ocid="owner.tab"
+              >
+                <ClipboardCheck size={16} className="mr-1" /> Registrations
               </TabsTrigger>
               <TabsTrigger value="revenue" data-ocid="owner.tab">
                 Daily Revenue
@@ -503,6 +958,16 @@ export default function TurfOwnerDashboard() {
                   </Button>
                 </div>
               </div>
+            </TabsContent>
+
+            {/* Tournaments */}
+            <TabsContent value="tournaments">
+              <OwnerTournamentsTab />
+            </TabsContent>
+
+            {/* Tournament Registrations */}
+            <TabsContent value="tournament-registrations">
+              <OwnerTournamentRegsTab />
             </TabsContent>
 
             {/* Daily Revenue */}

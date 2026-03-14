@@ -149,10 +149,22 @@ export default function UserDashboard() {
     return { label: "Remaining Pending", cls: "bg-orange-500" };
   };
 
-  // Returns true if the slot has already started or is in the past
-  const isSlotStarted = (date: string, slotLabels: string[]) => {
+  // Parse slot start time label like "6:00 PM" or "6PM" into minutes from midnight
+  const parseSlotStartMinutes = (label: string): number | null => {
+    const startLabel = label.split("-")[0]?.trim();
+    const match = startLabel?.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
+    if (!match) return null;
+    let h = Number.parseInt(match[1]);
+    const m = match[2] ? Number.parseInt(match[2]) : 0;
+    if (match[3].toUpperCase() === "PM" && h !== 12) h += 12;
+    if (match[3].toUpperCase() === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  // Returns true if cancellation is allowed: current time < slot start time - 1 hour
+  const isCancelAllowed = (b: (typeof myBookings)[0]): boolean => {
     const now = new Date();
-    const bookingDate = new Date(date);
+    const bookingDate = new Date(b.date);
     const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const bDate = new Date(
       bookingDate.getFullYear(),
@@ -160,28 +172,21 @@ export default function UserDashboard() {
       bookingDate.getDate(),
     );
 
-    if (bDate < nowDate) return true;
+    // Future date: always cancellable
+    if (bDate > nowDate) return true;
+    // Past date: not cancellable
+    if (bDate < nowDate) return false;
 
-    if (bDate.getTime() === nowDate.getTime()) {
-      const firstSlot = slotLabels[0];
-      if (firstSlot) {
-        const startLabel = firstSlot.split("-")[0]?.trim();
-        const hourMatch = startLabel?.match(/(\d+)(?::(\d+))?(AM|PM)/i);
-        if (hourMatch) {
-          let h = Number.parseInt(hourMatch[1]);
-          const m = hourMatch[2] ? Number.parseInt(hourMatch[2]) : 0;
-          if (hourMatch[3].toUpperCase() === "PM" && h !== 12) h += 12;
-          if (hourMatch[3].toUpperCase() === "AM" && h === 12) h = 0;
-          const slotMinutes = h * 60 + m;
-          const nowMinutes = now.getHours() * 60 + now.getMinutes();
-          return nowMinutes >= slotMinutes;
-        }
-      }
-    }
-    return false;
+    // Same day: check if current time < slot start - 1 hour
+    const firstSlot = b.slotLabels[0];
+    if (!firstSlot) return false;
+    const slotStartMinutes = parseSlotStartMinutes(firstSlot);
+    if (slotStartMinutes === null) return false;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return nowMinutes < slotStartMinutes - 60;
   };
 
-  // Keep isSlotPast for "Pay Remaining" logic (after slot ends)
+  // Returns true if slot has ended (for Pay Remaining logic)
   const isSlotPast = (date: string, slotLabels: string[]) => {
     const now = new Date();
     const bookingDate = new Date(date);
@@ -212,17 +217,9 @@ export default function UserDashboard() {
     return false;
   };
 
-  // Show Cancel button only when slot has NOT yet started
+  // Show Cancel button only if active AND cancellation is still allowed (>1 hour before slot)
   const canShowCancel = (b: (typeof myBookings)[0]) =>
-    b.status !== "cancelled" &&
-    b.status !== "rejected" &&
-    !isSlotStarted(b.date, b.slotLabels);
-
-  // Show inline "Cancellation no longer available" note when slot has started but booking is still active
-  const isSlotStartedActive = (b: (typeof myBookings)[0]) =>
-    b.status !== "cancelled" &&
-    b.status !== "rejected" &&
-    isSlotStarted(b.date, b.slotLabels);
+    b.status !== "cancelled" && b.status !== "rejected" && isCancelAllowed(b);
 
   const canPayRemaining = (b: (typeof myBookings)[0]) =>
     b.paymentStatus !== "fullyPaid" &&
@@ -257,7 +254,7 @@ export default function UserDashboard() {
 
           <div className="mb-6 flex items-center gap-2">
             <History size={20} className="text-green-600" />
-            <h2 className="font-display font-bold text-xl">Booking History</h2>
+            <h2 className="font-display font-bold text-xl">My Bookings</h2>
             <Badge variant="secondary" className="ml-1">
               {myBookings.length} booking{myBookings.length !== 1 ? "s" : ""}
             </Badge>
@@ -286,6 +283,9 @@ export default function UserDashboard() {
               {myBookings.map((b, i) => {
                 const st = statusInfo(b.paymentStatus);
                 const isCancelled = b.status === "cancelled";
+                const isActive =
+                  b.status !== "cancelled" && b.status !== "rejected";
+                const cancelAllowed = isCancelAllowed(b);
                 return (
                   <motion.div
                     key={b.id}
@@ -350,6 +350,13 @@ export default function UserDashboard() {
                             non-refundable
                           </p>
                         )}
+                        {/* Show quiet note when cancellation window has closed */}
+                        {isActive && !cancelAllowed && (
+                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                            <Clock size={11} />
+                            Cancellation closed (less than 1 hour before slot)
+                          </p>
+                        )}
                       </div>
                       <div className="flex flex-col gap-2 items-end">
                         <p className="text-xs text-muted-foreground font-mono">
@@ -378,11 +385,6 @@ export default function UserDashboard() {
                             <XCircle size={12} />
                             Cancel Booking
                           </Button>
-                        )}
-                        {isSlotStartedActive(b) && (
-                          <p className="text-xs text-muted-foreground text-right">
-                            Cancellation no longer available
-                          </p>
                         )}
                         {canPayRemaining(b) && (
                           <Button
@@ -420,7 +422,7 @@ export default function UserDashboard() {
               Are you sure you want to cancel this booking?
               <br />
               <span className="font-semibold text-red-600">
-                The advance payment will not be refunded.
+                Advance payment will not be refunded.
               </span>
             </AlertDialogDescription>
           </AlertDialogHeader>
@@ -438,7 +440,7 @@ export default function UserDashboard() {
               }}
               data-ocid="cancel.confirm_button"
             >
-              Confirm Cancellation
+              Confirm Cancel
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

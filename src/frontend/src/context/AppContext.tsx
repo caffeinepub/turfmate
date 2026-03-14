@@ -9,10 +9,16 @@ import type {
   Booking,
   PaymentStatus,
   TimeSlot,
+  Tournament,
+  TournamentRegistration,
   Turf,
   User,
   UserRole,
 } from "../types";
+
+// Fixed admin credentials — only these can access the Admin Dashboard
+const ADMIN_ID = "turfmateadmin";
+const ADMIN_PASSWORD = "admin123";
 
 const SEED_TURFS: Turf[] = [
   {
@@ -85,14 +91,6 @@ const SEED_TURFS: Turf[] = [
 
 const SEED_USERS: User[] = [
   {
-    id: "admin-1",
-    fullName: "Platform Admin",
-    phone: "9000000000",
-    email: "admin@turfmate.com",
-    password: "admin123",
-    role: "admin",
-  },
-  {
     id: "owner-1",
     fullName: "Rajesh Patil",
     phone: "9111111111",
@@ -128,6 +126,16 @@ const SEED_USERS: User[] = [
     role: "user",
   },
 ];
+
+// Virtual admin user object — never stored in the users array
+const ADMIN_USER: User = {
+  id: "admin-1",
+  fullName: "Platform Admin",
+  phone: "9000000000",
+  email: "admin@turfmate.com",
+  password: "",
+  role: "admin",
+};
 
 function parseHour(timeStr: string): number {
   const clean = timeStr.replace(/\s/g, "").toUpperCase();
@@ -189,7 +197,9 @@ interface AppContextType {
   turfs: Turf[];
   slots: TimeSlot[];
   bookings: Booking[];
-  login: (email: string, password: string, role: UserRole) => boolean;
+  tournaments: Tournament[];
+  tournamentRegistrations: TournamentRegistration[];
+  login: (identifier: string, password: string, role: UserRole) => boolean;
   logout: () => void;
   signup: (
     fullName: string,
@@ -215,6 +225,11 @@ interface AppContextType {
   approveBooking: (bookingId: string) => void;
   rejectBooking: (bookingId: string) => void;
   cancelBooking: (bookingId: string) => void;
+  createTournament: (t: Omit<Tournament, "id" | "createdAt">) => Tournament;
+  deleteTournament: (id: string) => void;
+  registerForTournament: (
+    reg: Omit<TournamentRegistration, "id" | "registeredAt">,
+  ) => TournamentRegistration;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -238,19 +253,19 @@ export function AppProvider({ children }: { children: ReactNode }) {
   );
   const [users, setUsers] = useState<User[]>(() => {
     const stored = loadLS<User[]>("users", []);
-    if (stored.length === 0) {
+    const nonAdmin = stored.filter((u) => u.role !== "admin");
+    if (nonAdmin.length === 0) {
       saveLS("users", SEED_USERS);
       return SEED_USERS;
     }
-    // Merge seed users if missing
-    const existingIds = stored.map((u) => u.id);
+    const existingIds = nonAdmin.map((u) => u.id);
     const missing = SEED_USERS.filter((u) => !existingIds.includes(u.id));
     if (missing.length > 0) {
-      const merged = [...stored, ...missing];
+      const merged = [...nonAdmin, ...missing];
       saveLS("users", merged);
       return merged;
     }
-    return stored;
+    return nonAdmin;
   });
   const [turfs, setTurfs] = useState<Turf[]>(() => {
     const stored = loadLS<Turf[]>("turfs", []);
@@ -264,6 +279,12 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>(() =>
     loadLS("bookings", []),
   );
+  const [tournaments, setTournaments] = useState<Tournament[]>(() =>
+    loadLS("tournaments", []),
+  );
+  const [tournamentRegistrations, setTournamentRegistrations] = useState<
+    TournamentRegistration[]
+  >(() => loadLS("tournamentRegistrations", []));
 
   useEffect(() => {
     saveLS("currentUser", currentUser);
@@ -280,10 +301,28 @@ export function AppProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     saveLS("bookings", bookings);
   }, [bookings]);
+  useEffect(() => {
+    saveLS("tournaments", tournaments);
+  }, [tournaments]);
+  useEffect(() => {
+    saveLS("tournamentRegistrations", tournamentRegistrations);
+  }, [tournamentRegistrations]);
 
-  const login = (email: string, password: string, role: UserRole): boolean => {
+  const login = (
+    identifier: string,
+    password: string,
+    role: UserRole,
+  ): boolean => {
+    if (role === "admin") {
+      if (identifier === ADMIN_ID && password === ADMIN_PASSWORD) {
+        setCurrentUser(ADMIN_USER);
+        return true;
+      }
+      return false;
+    }
     const user = users.find(
-      (u) => u.email === email && u.password === password && u.role === role,
+      (u) =>
+        u.email === identifier && u.password === password && u.role === role,
     );
     if (user) {
       setCurrentUser(user);
@@ -458,6 +497,34 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const createTournament = (
+    t: Omit<Tournament, "id" | "createdAt">,
+  ): Tournament => {
+    const newT: Tournament = {
+      ...t,
+      id: `tourn-${Date.now()}`,
+      createdAt: new Date().toISOString(),
+    };
+    setTournaments((prev) => [...prev, newT]);
+    return newT;
+  };
+
+  const deleteTournament = (id: string) => {
+    setTournaments((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const registerForTournament = (
+    reg: Omit<TournamentRegistration, "id" | "registeredAt">,
+  ): TournamentRegistration => {
+    const newReg: TournamentRegistration = {
+      ...reg,
+      id: `treg-${Date.now()}`,
+      registeredAt: new Date().toISOString(),
+    };
+    setTournamentRegistrations((prev) => [...prev, newReg]);
+    return newReg;
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -466,6 +533,8 @@ export function AppProvider({ children }: { children: ReactNode }) {
         turfs,
         slots,
         bookings,
+        tournaments,
+        tournamentRegistrations,
         login,
         logout,
         signup,
@@ -481,6 +550,9 @@ export function AppProvider({ children }: { children: ReactNode }) {
         approveBooking,
         rejectBooking,
         cancelBooking,
+        createTournament,
+        deleteTournament,
+        registerForTournament,
       }}
     >
       {children}

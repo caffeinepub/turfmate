@@ -65,3 +65,37 @@ export interface Booking {
   createdAt: string;
   status?: "approved" | "rejected" | "pending" | "cancelled";
 }
+
+export interface Tournament {
+  id: string;
+  name: string;
+  turfId: string;
+  turfName: string;
+  location: string;
+  date: string;
+  organizerName: string;
+  winningPrize: number;
+  maxTeams: number;
+  registrationEndDate: string;
+  rules: string;
+  contact1: string;
+  contact2: string;
+  entryFee: number;
+  qrCodeUrl: string;
+  createdBy: string;
+  createdAt: string;
+}
+
+export interface TournamentRegistration {
+  id: string;
+  tournamentId: string;
+  tournamentName: string;
+  teamName: string;
+  captainName: string;
+  contact1: string;
+  contact2: string;
+  numberOfPlayers: number;
+  paymentStatus: "paid";
+  registeredAt: string;
+  userId: string;
+}

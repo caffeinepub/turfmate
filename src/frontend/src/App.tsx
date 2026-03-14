@@ -9,6 +9,7 @@ import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import PaymentPage from "./pages/PaymentPage";
 import SignupPage from "./pages/SignupPage";
+import TournamentsPage from "./pages/TournamentsPage";
 import TurfDetailPage from "./pages/TurfDetailPage";
 import TurfOwnerDashboard from "./pages/TurfOwnerDashboard";
 import UserDashboard from "./pages/UserDashboard";
@@ -80,6 +81,14 @@ function AppRoutes() {
         element={
           <AuthGuard allowedRoles={["user"]}>
             <UserDashboard />
+          </AuthGuard>
+        }
+      />
+      <Route
+        path="/tournaments"
+        element={
+          <AuthGuard>
+            <TournamentsPage />
           </AuthGuard>
         }
       />

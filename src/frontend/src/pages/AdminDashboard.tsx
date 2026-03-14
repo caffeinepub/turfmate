@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ClipboardCheck,
   ClipboardList,
   Edit2,
   ImagePlus,
@@ -34,6 +35,7 @@ import {
   Plus,
   Trash2,
   TrendingUp,
+  Trophy as TrophyIcon,
   Upload,
   Users,
   X,
@@ -42,7 +44,7 @@ import { motion } from "motion/react";
 import { useRef, useState } from "react";
 import Navbar from "../components/Navbar";
 import { useApp } from "../context/AppContext";
-import type { SurfaceType, Turf } from "../types";
+import type { SurfaceType, Tournament, Turf } from "../types";
 
 type TurfForm = Omit<Turf, "id" | "ownerId"> & { ownerId?: string };
 
@@ -320,6 +322,421 @@ function AdminRevenuePanel({
   );
 }
 
+function AdminTournamentsTab() {
+  const {
+    turfs,
+    tournaments,
+    tournamentRegistrations,
+    createTournament,
+    deleteTournament,
+  } = useApp();
+  const [showForm, setShowForm] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    turfId: "",
+    turfName: "",
+    location: "",
+    date: "",
+    organizerName: "",
+    winningPrize: 10000,
+    maxTeams: 8,
+    registrationEndDate: "",
+    rules: "",
+    contact1: "",
+    contact2: "",
+    entryFee: 500,
+    qrCodeUrl: "",
+  });
+  const qrRef = useRef<HTMLInputElement>(null);
+
+  const handleTurfChange = (turfId: string) => {
+    const turf = turfs.find((t) => t.id === turfId);
+    setForm((p) => ({ ...p, turfId, turfName: turf?.name ?? "" }));
+  };
+
+  const handleQrUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      setForm((p) => ({ ...p, qrCodeUrl: reader.result as string }));
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleSubmit = () => {
+    if (!form.name || !form.turfId || !form.date || !form.registrationEndDate) {
+      return;
+    }
+    createTournament({ ...form, createdBy: "admin" });
+    setForm({
+      name: "",
+      turfId: "",
+      turfName: "",
+      location: "",
+      date: "",
+      organizerName: "",
+      winningPrize: 10000,
+      maxTeams: 8,
+      registrationEndDate: "",
+      rules: "",
+      contact1: "",
+      contact2: "",
+      entryFee: 500,
+      qrCodeUrl: "",
+    });
+    setShowForm(false);
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="font-display font-bold text-xl flex items-center gap-2">
+          <TrophyIcon size={20} className="text-green-600" /> Tournaments
+        </h2>
+        <Button
+          onClick={() => setShowForm(!showForm)}
+          className="bg-green-600 hover:bg-green-700 text-white"
+          data-ocid="admin.tournaments.primary_button"
+        >
+          {showForm ? "Cancel" : "Create Tournament"}
+        </Button>
+      </div>
+
+      {showForm && (
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-white rounded-2xl border border-border p-5 shadow-sm"
+          data-ocid="admin.tournaments.panel"
+        >
+          <h3 className="font-semibold text-gray-800 mb-4">New Tournament</h3>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <Label>Tournament Name *</Label>
+              <Input
+                className="mt-1"
+                value={form.name}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, name: e.target.value }))
+                }
+                placeholder="e.g. Summer Cup 2026"
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Turf *</Label>
+              <Select value={form.turfId} onValueChange={handleTurfChange}>
+                <SelectTrigger
+                  className="mt-1"
+                  data-ocid="admin.tournaments.select"
+                >
+                  <SelectValue placeholder="Select turf" />
+                </SelectTrigger>
+                <SelectContent>
+                  {turfs.map((t) => (
+                    <SelectItem key={t.id} value={t.id}>
+                      {t.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label>Location *</Label>
+              <Input
+                className="mt-1"
+                value={form.location}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, location: e.target.value }))
+                }
+                placeholder="City / Venue"
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Date of Tournament *</Label>
+              <Input
+                type="date"
+                className="mt-1"
+                value={form.date}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, date: e.target.value }))
+                }
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Organizer Name</Label>
+              <Input
+                className="mt-1"
+                value={form.organizerName}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, organizerName: e.target.value }))
+                }
+                placeholder="Organizer"
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Winning Prize (₹)</Label>
+              <Input
+                type="number"
+                className="mt-1"
+                value={form.winningPrize}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    winningPrize: Number(e.target.value),
+                  }))
+                }
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Max Teams</Label>
+              <Input
+                type="number"
+                className="mt-1"
+                value={form.maxTeams}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, maxTeams: Number(e.target.value) }))
+                }
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Registration End Date *</Label>
+              <Input
+                type="date"
+                className="mt-1"
+                value={form.registrationEndDate}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    registrationEndDate: e.target.value,
+                  }))
+                }
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Contact Number 1</Label>
+              <Input
+                className="mt-1"
+                value={form.contact1}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact1: e.target.value }))
+                }
+                placeholder="Primary contact"
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Contact Number 2</Label>
+              <Input
+                className="mt-1"
+                value={form.contact2}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, contact2: e.target.value }))
+                }
+                placeholder="Secondary contact"
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Entry Fee (₹)</Label>
+              <Input
+                type="number"
+                className="mt-1"
+                value={form.entryFee}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, entryFee: Number(e.target.value) }))
+                }
+                data-ocid="admin.tournaments.input"
+              />
+            </div>
+            <div>
+              <Label>Upload QR Code for Payment</Label>
+              <input
+                ref={qrRef}
+                type="file"
+                accept="image/*"
+                className="hidden"
+                onChange={handleQrUpload}
+              />
+              <Button
+                variant="outline"
+                size="sm"
+                className="mt-1 w-full"
+                onClick={() => qrRef.current?.click()}
+                data-ocid="admin.tournaments.upload_button"
+              >
+                <Upload size={14} className="mr-1" /> Upload QR Code
+              </Button>
+              {form.qrCodeUrl && (
+                <img
+                  src={form.qrCodeUrl}
+                  alt="QR Preview"
+                  className="mt-2 w-24 h-24 object-contain rounded border border-border"
+                />
+              )}
+            </div>
+            <div className="sm:col-span-2">
+              <Label>Rules and Regulations</Label>
+              <Textarea
+                className="mt-1 min-h-[100px]"
+                value={form.rules}
+                onChange={(e) =>
+                  setForm((p) => ({ ...p, rules: e.target.value }))
+                }
+                placeholder="Tournament rules..."
+                data-ocid="admin.tournaments.textarea"
+              />
+            </div>
+          </div>
+          <Button
+            className="mt-4 bg-green-600 hover:bg-green-700 text-white"
+            onClick={handleSubmit}
+            data-ocid="admin.tournaments.submit_button"
+          >
+            Create Tournament
+          </Button>
+        </motion.div>
+      )}
+
+      {/* Tournament list */}
+      <div className="space-y-3">
+        {tournaments.length === 0 ? (
+          <div
+            className="text-center py-12 text-gray-400"
+            data-ocid="admin.tournaments.empty_state"
+          >
+            No tournaments created yet.
+          </div>
+        ) : (
+          tournaments.map((t, idx) => (
+            <TournamentListCard
+              key={t.id}
+              tournament={t}
+              index={idx + 1}
+              registrationCount={
+                tournamentRegistrations.filter((r) => r.tournamentId === t.id)
+                  .length
+              }
+              onDelete={() => deleteTournament(t.id)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  );
+}
+
+function TournamentListCard({
+  tournament,
+  index,
+  registrationCount,
+  onDelete,
+}: {
+  tournament: Tournament;
+  index: number;
+  registrationCount: number;
+  onDelete: () => void;
+}) {
+  return (
+    <div
+      className="bg-white rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      data-ocid={`admin.tournaments.item.${index}`}
+    >
+      <div className="space-y-1">
+        <div className="flex items-center gap-2">
+          <TrophyIcon size={16} className="text-green-600" />
+          <span className="font-semibold text-gray-800">{tournament.name}</span>
+        </div>
+        <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
+          <span>Turf: {tournament.turfName}</span>
+          <span>
+            Date: {new Date(tournament.date).toLocaleDateString("en-IN")}
+          </span>
+          <span>Prize: ₹{tournament.winningPrize.toLocaleString()}</span>
+          <span>
+            Teams: {registrationCount}/{tournament.maxTeams}
+          </span>
+          <span>Location: {tournament.location}</span>
+        </div>
+      </div>
+      <Button
+        variant="destructive"
+        size="sm"
+        onClick={onDelete}
+        data-ocid={`admin.tournaments.delete_button.${index}`}
+      >
+        <Trash2 size={14} className="mr-1" /> Delete
+      </Button>
+    </div>
+  );
+}
+
+function AdminTournamentRegsTab() {
+  const { tournamentRegistrations } = useApp();
+  return (
+    <div className="space-y-4">
+      <h2 className="font-display font-bold text-xl flex items-center gap-2">
+        <ClipboardCheck size={20} className="text-green-600" /> Tournament
+        Registrations
+      </h2>
+      {tournamentRegistrations.length === 0 ? (
+        <div
+          className="text-center py-12 text-gray-400"
+          data-ocid="admin.tournament-registrations.empty_state"
+        >
+          No team registrations yet.
+        </div>
+      ) : (
+        <div
+          className="overflow-x-auto rounded-xl border border-border"
+          data-ocid="admin.tournament-registrations.table"
+        >
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Tournament</TableHead>
+                <TableHead>Team Name</TableHead>
+                <TableHead>Captain</TableHead>
+                <TableHead>Contact 1</TableHead>
+                <TableHead>Contact 2</TableHead>
+                <TableHead>Players</TableHead>
+                <TableHead>Payment</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {tournamentRegistrations.map((r, idx) => (
+                <TableRow
+                  key={r.id}
+                  data-ocid={`admin.tournament-registrations.row.${idx + 1}`}
+                >
+                  <TableCell className="font-medium">
+                    {r.tournamentName}
+                  </TableCell>
+                  <TableCell>{r.teamName}</TableCell>
+                  <TableCell>{r.captainName}</TableCell>
+                  <TableCell>{r.contact1}</TableCell>
+                  <TableCell>{r.contact2 || "—"}</TableCell>
+                  <TableCell>{r.numberOfPlayers}</TableCell>
+                  <TableCell>
+                    <Badge className="bg-green-100 text-green-700">Paid</Badge>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const {
     turfs,
@@ -476,6 +893,16 @@ export default function AdminDashboard() {
               </TabsTrigger>
               <TabsTrigger value="owners" data-ocid="admin.tab">
                 Turf Owners
+              </TabsTrigger>
+              <TabsTrigger value="tournaments" data-ocid="admin.tab">
+                <TrophyIcon size={16} className="mr-1" /> Tournaments
+              </TabsTrigger>
+              <TabsTrigger
+                value="tournament-registrations"
+                data-ocid="admin.tab"
+              >
+                <ClipboardCheck size={16} className="mr-1" /> Tournament
+                Registrations
               </TabsTrigger>
               <TabsTrigger value="revenue" data-ocid="admin.tab">
                 Daily Revenue
@@ -781,6 +1208,16 @@ export default function AdminDashboard() {
                   </p>
                 )}
               </div>
+            </TabsContent>
+
+            {/* Tournaments */}
+            <TabsContent value="tournaments">
+              <AdminTournamentsTab />
+            </TabsContent>
+
+            {/* Tournament Registrations */}
+            <TabsContent value="tournament-registrations">
+              <AdminTournamentRegsTab />
             </TabsContent>
 
             {/* Daily Revenue */}
