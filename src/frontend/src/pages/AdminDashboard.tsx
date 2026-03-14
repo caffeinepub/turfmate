@@ -33,6 +33,7 @@ import {
   LayoutDashboard,
   Plus,
   Trash2,
+  TrendingUp,
   Upload,
   Users,
   X,
@@ -212,6 +213,113 @@ function GalleryUploadField({ images, onChange }: GalleryUploadFieldProps) {
   );
 }
 
+interface RevenueEntry {
+  date: string;
+  totalBookings: number;
+  totalRevenue: number;
+}
+
+function computeDailyRevenue(
+  bookings: import("../types").Booking[],
+  turfId?: string,
+): RevenueEntry[] {
+  const filtered = turfId
+    ? bookings.filter((b) => b.turfId === turfId)
+    : bookings;
+  const active = filtered.filter(
+    (b) => b.status !== "cancelled" && b.status !== "rejected",
+  );
+  const map: Record<string, { totalBookings: number; totalRevenue: number }> =
+    {};
+  for (const b of active) {
+    if (!map[b.date]) map[b.date] = { totalBookings: 0, totalRevenue: 0 };
+    map[b.date].totalBookings += 1;
+    map[b.date].totalRevenue +=
+      b.paymentType === "advance" ? b.advanceAmount : b.totalPrice;
+  }
+  return Object.entries(map)
+    .map(([date, v]) => ({ date, ...v }))
+    .sort((a, b) => b.date.localeCompare(a.date));
+}
+
+function AdminRevenuePanel({
+  bookings,
+}: { bookings: import("../types").Booking[] }) {
+  const entries = computeDailyRevenue(bookings);
+  const totalRevenue = entries.reduce((s, e) => s + e.totalRevenue, 0);
+  const totalBookings = entries.reduce((s, e) => s + e.totalBookings, 0);
+
+  return (
+    <div>
+      <h2 className="font-display font-bold text-xl mb-4 flex items-center gap-2">
+        <TrendingUp size={20} className="text-green-600" />
+        Daily Revenue Report
+      </h2>
+      {/* Summary cards */}
+      <div className="grid grid-cols-2 gap-4 mb-6">
+        <div className="bg-green-50 border border-green-200 rounded-2xl p-4">
+          <p className="text-sm text-green-700 font-medium">
+            Total Revenue (All Time)
+          </p>
+          <p className="text-2xl font-bold text-green-800 mt-1">
+            ₹{totalRevenue.toLocaleString()}
+          </p>
+        </div>
+        <div className="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+          <p className="text-sm text-blue-700 font-medium">
+            Total Bookings (All Time)
+          </p>
+          <p className="text-2xl font-bold text-blue-800 mt-1">
+            {totalBookings}
+          </p>
+        </div>
+      </div>
+      {entries.length === 0 ? (
+        <p
+          className="text-center text-muted-foreground py-10"
+          data-ocid="admin.revenue.empty_state"
+        >
+          No booking revenue data yet.
+        </p>
+      ) : (
+        <div
+          className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
+          data-ocid="admin.revenue.table"
+        >
+          <table className="w-full text-sm">
+            <thead className="bg-muted/40">
+              <tr>
+                <th className="text-left px-4 py-3 font-semibold">Date</th>
+                <th className="text-right px-4 py-3 font-semibold">
+                  Total Bookings
+                </th>
+                <th className="text-right px-4 py-3 font-semibold">
+                  Total Revenue
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {entries.map((e, i) => (
+                <tr
+                  key={e.date}
+                  className={i % 2 === 0 ? "bg-white" : "bg-muted/20"}
+                  data-ocid={`admin.revenue.row.${i + 1}`}
+                >
+                  <td className="px-4 py-3 font-medium">{e.date}</td>
+                  <td className="px-4 py-3 text-right">{e.totalBookings}</td>
+                  <td className="px-4 py-3 text-right font-semibold text-green-700">
+                    ₹{e.totalRevenue.toLocaleString()}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const {
     turfs,
@@ -368,6 +476,9 @@ export default function AdminDashboard() {
               </TabsTrigger>
               <TabsTrigger value="owners" data-ocid="admin.tab">
                 Turf Owners
+              </TabsTrigger>
+              <TabsTrigger value="revenue" data-ocid="admin.tab">
+                Daily Revenue
               </TabsTrigger>
             </TabsList>
 
@@ -670,6 +781,11 @@ export default function AdminDashboard() {
                   </p>
                 )}
               </div>
+            </TabsContent>
+
+            {/* Daily Revenue */}
+            <TabsContent value="revenue">
+              <AdminRevenuePanel bookings={bookings} />
             </TabsContent>
           </Tabs>
         </main>

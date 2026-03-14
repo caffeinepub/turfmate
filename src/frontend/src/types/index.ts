@@ -63,5 +63,5 @@ export interface Booking {
   phone: string;
   emergencyContact: string;
   createdAt: string;
-  status?: "approved" | "rejected" | "pending";
+  status?: "approved" | "rejected" | "pending" | "cancelled";
 }

@@ -214,6 +214,7 @@ interface AppContextType {
   reopenSlot: (slotId: string) => void;
   approveBooking: (bookingId: string) => void;
   rejectBooking: (bookingId: string) => void;
+  cancelBooking: (bookingId: string) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -441,6 +442,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     );
   };
 
+  const cancelBooking = (bookingId: string) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (booking) {
+      setSlots((prev) =>
+        prev.map((s) =>
+          booking.slotIds.includes(s.id)
+            ? { ...s, status: "available", bookingId: undefined }
+            : s,
+        ),
+      );
+    }
+    setBookings((prev) =>
+      prev.map((b) => (b.id === bookingId ? { ...b, status: "cancelled" } : b)),
+    );
+  };
+
   return (
     <AppContext.Provider
       value={{
@@ -463,6 +480,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         reopenSlot,
         approveBooking,
         rejectBooking,
+        cancelBooking,
       }}
     >
       {children}
