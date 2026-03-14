@@ -14,6 +14,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Calendar,
+  ChevronDown,
   ClipboardCheck,
   Clock,
   Edit2,
@@ -125,6 +126,121 @@ function OwnerRevenueContent() {
   );
 }
 
+function OwnerSettingsTab() {
+  const { currentUser, updateTurfOwner } = useApp();
+  const [form, setForm] = useState({
+    email: currentUser?.email ?? "",
+    phone: currentUser?.phone ?? "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!currentUser) return;
+    if (form.password && form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    const updates: { email?: string; phone?: string; password?: string } = {};
+    if (form.email) updates.email = form.email;
+    if (form.phone) updates.phone = form.phone;
+    if (form.password) updates.password = form.password;
+    updateTurfOwner(currentUser.id, updates);
+    setSuccess("Settings updated successfully!");
+    setError("");
+    setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+  }
+
+  return (
+    <div className="max-w-lg">
+      <h2 className="font-display font-bold text-xl mb-4">Account Settings</h2>
+      <p className="text-muted-foreground text-sm mb-6">
+        Update your email, contact number, or password.
+      </p>
+      <div className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-5">
+        <form onSubmit={handleSave} className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="settings-email">Email / Gmail</Label>
+            <input
+              id="settings-email"
+              type="email"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+              value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })}
+              placeholder="owner@email.com"
+              data-ocid="owner.settings.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="settings-phone">Contact Number</Label>
+            <input
+              id="settings-phone"
+              type="tel"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+              value={form.phone}
+              onChange={(e) => setForm({ ...form, phone: e.target.value })}
+              placeholder="+91 9876543210"
+              data-ocid="owner.settings.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="settings-password">New Password</Label>
+            <input
+              id="settings-password"
+              type="password"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+              value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })}
+              placeholder="Leave blank to keep current"
+              data-ocid="owner.settings.input"
+            />
+          </div>
+          <div className="space-y-2">
+            <Label htmlFor="settings-confirm">Confirm Password</Label>
+            <input
+              id="settings-confirm"
+              type="password"
+              className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+              value={form.confirmPassword}
+              onChange={(e) =>
+                setForm({ ...form, confirmPassword: e.target.value })
+              }
+              placeholder="Confirm new password"
+              data-ocid="owner.settings.input"
+            />
+          </div>
+          {error && (
+            <p
+              className="text-red-600 text-sm"
+              data-ocid="owner.settings.error_state"
+            >
+              {error}
+            </p>
+          )}
+          {success && (
+            <p
+              className="text-green-600 text-sm"
+              data-ocid="owner.settings.success_state"
+            >
+              {success}
+            </p>
+          )}
+          <button
+            type="submit"
+            className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold rounded-xl py-2.5 transition-colors"
+            data-ocid="owner.settings.save_button"
+          >
+            Save Changes
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 function OwnerTournamentsTab() {
   const {
     currentUser,
@@ -148,6 +264,7 @@ function OwnerTournamentsTab() {
     organizerName: "",
     winningPrize: 10000,
     maxTeams: 8,
+    playersPerTeam: 0,
     registrationEndDate: "",
     rules: "",
     contact1: "",
@@ -181,6 +298,7 @@ function OwnerTournamentsTab() {
       organizerName: "",
       winningPrize: 10000,
       maxTeams: 8,
+      playersPerTeam: 0,
       registrationEndDate: "",
       rules: "",
       contact1: "",
@@ -310,6 +428,25 @@ function OwnerTournamentsTab() {
             </div>
             <div>
               <span className="text-sm font-medium text-gray-700 block">
+                Players Per Team (0 = no restriction)
+              </span>
+              <input
+                type="number"
+                min={0}
+                className="mt-1 w-full border border-input rounded-md px-3 py-2 text-sm"
+                value={form.playersPerTeam}
+                onChange={(e) =>
+                  setForm((p) => ({
+                    ...p,
+                    playersPerTeam: Number(e.target.value),
+                  }))
+                }
+                placeholder="e.g. 7 or 11"
+                data-ocid="owner.tournaments.input"
+              />
+            </div>
+            <div>
+              <span className="text-sm font-medium text-gray-700 block">
                 Registration End Date *
               </span>
               <input
@@ -434,10 +571,9 @@ function OwnerTournamentsTab() {
               key={t.id}
               tournament={t}
               index={idx + 1}
-              registrationCount={
-                tournamentRegistrations.filter((r) => r.tournamentId === t.id)
-                  .length
-              }
+              registrations={tournamentRegistrations.filter(
+                (r) => r.tournamentId === t.id,
+              )}
               onDelete={() => deleteTournament(t.id)}
             />
           ))
@@ -450,42 +586,238 @@ function OwnerTournamentsTab() {
 function OwnerTournamentCard({
   tournament,
   index,
-  registrationCount,
+  registrations,
   onDelete,
 }: {
   tournament: Tournament;
   index: number;
-  registrationCount: number;
+  registrations: import("../types").TournamentRegistration[];
   onDelete: () => void;
 }) {
+  const [activeSection, setActiveSection] = useState<
+    "details" | "teams" | "payments"
+  >("details");
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div
-      className="bg-white rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      className="bg-white rounded-xl border border-border shadow-sm overflow-hidden"
       data-ocid={`owner.tournaments.item.${index}`}
     >
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <TrophyIcon size={16} className="text-green-600" />
-          <span className="font-semibold text-gray-800">{tournament.name}</span>
-        </div>
-        <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
-          <span>
-            Date: {new Date(tournament.date).toLocaleDateString("en-IN")}
-          </span>
-          <span>Prize: ₹{tournament.winningPrize.toLocaleString()}</span>
-          <span>
-            Teams: {registrationCount}/{tournament.maxTeams}
-          </span>
-        </div>
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-700 to-green-600">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-white font-semibold text-base flex-1 text-left"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <TrophyIcon size={16} className="shrink-0" />
+          <span>{tournament.name}</span>
+          <ChevronDown
+            size={16}
+            className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
+        <button
+          type="button"
+          className="ml-3 px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-xs rounded-lg flex items-center gap-1 shrink-0"
+          onClick={onDelete}
+          data-ocid={`owner.tournaments.delete_button.${index}`}
+        >
+          <Trash2 size={13} /> Delete
+        </button>
       </div>
-      <button
-        type="button"
-        className="px-3 py-1.5 bg-red-500 hover:bg-red-600 text-white text-sm rounded-lg flex items-center gap-1"
-        onClick={onDelete}
-        data-ocid={`owner.tournaments.delete_button.${index}`}
-      >
-        <Trash2 size={13} /> Delete
-      </button>
+
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 bg-green-50 text-xs text-gray-600 border-b border-border">
+        <span>{new Date(tournament.date).toLocaleDateString("en-IN")}</span>
+        <span>₹{tournament.winningPrize.toLocaleString()} prize</span>
+        <span className="font-medium text-green-700">
+          {registrations.length}/{tournament.maxTeams} teams
+        </span>
+        {tournament.playersPerTeam > 0 && (
+          <span className="font-medium text-blue-700">
+            {tournament.playersPerTeam} players/team
+          </span>
+        )}
+      </div>
+
+      {expanded && (
+        <div>
+          <div className="flex border-b border-border bg-gray-50">
+            {(["details", "teams", "payments"] as const).map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => setActiveSection(sec)}
+                className={`flex-1 py-2 text-sm font-medium capitalize transition-colors ${
+                  activeSection === sec
+                    ? "bg-white text-green-700 border-b-2 border-green-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                data-ocid="owner.tournaments.tab"
+              >
+                {sec === "teams"
+                  ? `Teams (${registrations.length})`
+                  : sec === "payments"
+                    ? "Payments"
+                    : "Details"}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-4">
+            {activeSection === "details" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-400">Location:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.location || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Organizer:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.organizerName || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Entry Fee:</span>{" "}
+                  <span className="font-medium">
+                    ₹{tournament.entryFee.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Max Teams:</span>{" "}
+                  <span className="font-medium">{tournament.maxTeams}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Players/Team:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.playersPerTeam > 0
+                      ? tournament.playersPerTeam
+                      : "No restriction"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Reg. End Date:</span>{" "}
+                  <span className="font-medium">
+                    {new Date(
+                      tournament.registrationEndDate,
+                    ).toLocaleDateString("en-IN")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Contact 1:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.contact1 || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Contact 2:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.contact2 || "—"}
+                  </span>
+                </div>
+                {tournament.rules && (
+                  <div className="sm:col-span-2">
+                    <span className="text-gray-400">Rules:</span>
+                    <p className="mt-1 text-gray-700 whitespace-pre-line bg-gray-50 rounded p-2 text-xs">
+                      {tournament.rules}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "teams" && (
+              <div>
+                {registrations.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 text-sm">
+                    No teams registered yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {registrations.map((r, i) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <div>
+                          <span className="font-semibold text-gray-800">
+                            #{i + 1} {r.teamName}
+                          </span>
+                          <span className="ml-3 text-gray-500">
+                            Captain: {r.captainName}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {r.numberOfPlayers} players · {r.contact1}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "payments" && (
+              <div>
+                {registrations.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 text-sm">
+                    No registrations yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-border">
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Team
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Captain
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Entry Fee
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Status
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Registered At
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {registrations.map((r) => (
+                          <tr key={r.id}>
+                            <td className="px-3 py-2 font-medium">
+                              {r.teamName}
+                            </td>
+                            <td className="px-3 py-2">{r.captainName}</td>
+                            <td className="px-3 py-2">
+                              ₹{tournament.entryFee.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2">
+                              <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
+                                Paid
+                              </span>
+                            </td>
+                            <td className="px-3 py-2 text-gray-500">
+                              {new Date(r.registeredAt).toLocaleDateString(
+                                "en-IN",
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -696,6 +1028,9 @@ export default function TurfOwnerDashboard() {
               </TabsTrigger>
               <TabsTrigger value="revenue" data-ocid="owner.tab">
                 Daily Revenue
+              </TabsTrigger>
+              <TabsTrigger value="settings" data-ocid="owner.tab">
+                Settings
               </TabsTrigger>
             </TabsList>
 
@@ -968,6 +1303,11 @@ export default function TurfOwnerDashboard() {
             {/* Tournament Registrations */}
             <TabsContent value="tournament-registrations">
               <OwnerTournamentRegsTab />
+            </TabsContent>
+
+            {/* Settings */}
+            <TabsContent value="settings">
+              <OwnerSettingsTab />
             </TabsContent>
 
             {/* Daily Revenue */}

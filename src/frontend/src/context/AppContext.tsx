@@ -210,6 +210,7 @@ interface AppContextType {
   addTurf: (turf: Omit<Turf, "id">) => Turf;
   editTurf: (id: string, updates: Partial<Turf>) => void;
   deleteTurf: (id: string) => void;
+  deleteOwner: (id: string) => void;
   createTurfOwner: (
     name: string,
     email: string,
@@ -230,6 +231,10 @@ interface AppContextType {
   registerForTournament: (
     reg: Omit<TournamentRegistration, "id" | "registeredAt">,
   ) => TournamentRegistration;
+  updateTurfOwner: (
+    ownerId: string,
+    updates: { email?: string; phone?: string; password?: string },
+  ) => void;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -367,6 +372,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
 
   const deleteTurf = (id: string) => {
     setTurfs((prev) => prev.filter((t) => t.id !== id));
+  };
+
+  const deleteOwner = (id: string) => {
+    setUsers((prev) => prev.filter((u) => u.id !== id));
   };
 
   const createTurfOwner = (
@@ -525,6 +534,17 @@ export function AppProvider({ children }: { children: ReactNode }) {
     return newReg;
   };
 
+  const updateTurfOwner = (
+    ownerId: string,
+    updates: { email?: string; phone?: string; password?: string },
+  ) => {
+    setUsers((prev) =>
+      prev.map((u) => (u.id === ownerId ? { ...u, ...updates } : u)),
+    );
+    setCurrentUser((prev) =>
+      prev && prev.id === ownerId ? { ...prev, ...updates } : prev,
+    );
+  };
   return (
     <AppContext.Provider
       value={{
@@ -541,6 +561,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         addTurf,
         editTurf,
         deleteTurf,
+        deleteOwner,
         createTurfOwner,
         getSlots,
         createBooking,
@@ -553,6 +574,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
         createTournament,
         deleteTournament,
         registerForTournament,
+        updateTurfOwner,
       }}
     >
       {children}

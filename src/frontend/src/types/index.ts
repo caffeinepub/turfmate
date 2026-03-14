@@ -76,6 +76,7 @@ export interface Tournament {
   organizerName: string;
   winningPrize: number;
   maxTeams: number;
+  playersPerTeam: number; // 0 = no restriction
   registrationEndDate: string;
   rules: string;
   contact1: string;

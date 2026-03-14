@@ -2,13 +2,38 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, MapPin, Moon, Sun } from "lucide-react";
+import { AlertCircle, Clock, MapPin, Moon, Sun } from "lucide-react";
 import { AnimatePresence, motion } from "motion/react";
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useApp } from "../context/AppContext";
 import type { PaymentType, TimeSlot } from "../types";
+
+/**
+ * Returns true if the slot's start time has already passed.
+ * Slot ID format: `${turfId}-${date}-${startHour}`
+ * where startHour is a 24-hour integer (0-23).
+ */
+function isPastSlot(slot: TimeSlot): boolean {
+  const now = new Date();
+  const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+
+  // Past date — always blocked
+  if (slot.date < todayStr) return true;
+
+  // Future date — always allowed
+  if (slot.date > todayStr) return false;
+
+  // Same date — compare by hour (and minute for precision)
+  const parts = slot.id.split("-");
+  const slotHour = Number.parseInt(parts[parts.length - 1], 10);
+  const nowMinutes = now.getHours() * 60 + now.getMinutes();
+  const slotStartMinutes = slotHour * 60;
+
+  // Block if current time >= slot start time
+  return nowMinutes >= slotStartMinutes;
+}
 
 export default function BookingPage() {
   const { id } = useParams<{ id: string }>();
@@ -21,6 +46,7 @@ export default function BookingPage() {
   const [slots, setSlots] = useState<TimeSlot[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [paymentType, setPaymentType] = useState<PaymentType>("advance");
+  const [pastSlotMsg, setPastSlotMsg] = useState(false);
   const [form, setForm] = useState({
     userName: currentUser?.fullName || "",
     phone: currentUser?.phone || "",
@@ -34,6 +60,7 @@ export default function BookingPage() {
       const s = getSlots(turf.id, date);
       setSlots(s);
       setSelected([]);
+      setPastSlotMsg(false);
     }
   }, [turf?.id, date]);
 
@@ -52,6 +79,12 @@ export default function BookingPage() {
 
   const toggleSlot = (slot: TimeSlot) => {
     if (slot.status === "booked" || slot.status === "completed") return;
+    if (isPastSlot(slot)) {
+      setPastSlotMsg(true);
+      setTimeout(() => setPastSlotMsg(false), 3500);
+      return;
+    }
+    setPastSlotMsg(false);
     setSelected((prev) =>
       prev.includes(slot.id)
         ? prev.filter((s) => s !== slot.id)
@@ -71,6 +104,18 @@ export default function BookingPage() {
     }
     if (selected.length === 0) {
       setError("Please select at least one time slot.");
+      return;
+    }
+    // Final guard: re-validate all selected slots haven't passed since selection
+    const hasExpired = selected.some((sid) => {
+      const slot = slots.find((s) => s.id === sid);
+      return slot ? isPastSlot(slot) : false;
+    });
+    if (hasExpired) {
+      setError(
+        "One or more selected slots have already passed. Please reselect.",
+      );
+      setSelected([]);
       return;
     }
     const selectedSlots = slots.filter((s) => selected.includes(s.id));
@@ -101,6 +146,8 @@ export default function BookingPage() {
     );
 
   const slotColorClass = (slot: TimeSlot) => {
+    if (isPastSlot(slot))
+      return "bg-gray-100 border-gray-200 text-gray-400 opacity-60 cursor-not-allowed";
     if (slot.status === "booked") return "slot-booked";
     if (slot.status === "completed") return "slot-completed";
     if (selected.includes(slot.id)) return "slot-selected";
@@ -215,11 +262,30 @@ export default function BookingPage() {
                       Selected
                     </span>
                     <span className="flex items-center gap-1">
-                      <span className="w-3 h-3 bg-gray-100 border border-gray-300 rounded" />
-                      Completed
+                      <span className="w-3 h-3 bg-gray-100 border border-gray-200 rounded" />
+                      Past / Unavailable
                     </span>
                   </div>
                 </div>
+
+                <AnimatePresence>
+                  {pastSlotMsg && (
+                    <motion.div
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -8 }}
+                      className="flex items-start gap-2 bg-orange-50 border border-orange-200 text-orange-700 rounded-xl px-4 py-3 mb-4 text-sm"
+                      data-ocid="booking.error_state"
+                    >
+                      <Clock size={16} className="mt-0.5 flex-shrink-0" />
+                      <span>
+                        This time slot has already passed. Please select a
+                        future slot.
+                      </span>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
                 <AnimatePresence>
                   <div className="grid grid-cols-3 sm:grid-cols-4 gap-2">
                     {slots.map((slot, i) => (
@@ -230,6 +296,11 @@ export default function BookingPage() {
                         transition={{ delay: i * 0.03 }}
                         onClick={() => toggleSlot(slot)}
                         className={`relative border-2 rounded-xl px-2 py-2.5 text-xs font-semibold text-center transition-all ${slotColorClass(slot)}`}
+                        title={
+                          isPastSlot(slot)
+                            ? "This time slot has already passed"
+                            : undefined
+                        }
                         data-ocid={`booking.toggle.${i + 1}`}
                       >
                         {slot.isNightSlot && (
@@ -238,7 +309,7 @@ export default function BookingPage() {
                             className="absolute top-1 right-1 opacity-60"
                           />
                         )}
-                        {!slot.isNightSlot && (
+                        {!slot.isNightSlot && !isPastSlot(slot) && (
                           <Sun
                             size={10}
                             className="absolute top-1 right-1 opacity-40"
@@ -246,10 +317,13 @@ export default function BookingPage() {
                         )}
                         <div>{slot.label}</div>
                         <div className="text-[10px] opacity-70 mt-0.5">
-                          ₹
-                          {slot.isNightSlot
-                            ? turf.nightPricePerHour
-                            : turf.pricePerHour}
+                          {isPastSlot(slot)
+                            ? "Passed"
+                            : `₹${
+                                slot.isNightSlot
+                                  ? turf.nightPricePerHour
+                                  : turf.pricePerHour
+                              }`}
                         </div>
                       </motion.button>
                     ))}

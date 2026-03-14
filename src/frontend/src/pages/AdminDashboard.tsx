@@ -26,6 +26,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 import {
+  ChevronDown,
   ClipboardCheck,
   ClipboardList,
   Edit2,
@@ -340,6 +341,7 @@ function AdminTournamentsTab() {
     organizerName: "",
     winningPrize: 10000,
     maxTeams: 8,
+    playersPerTeam: 0,
     registrationEndDate: "",
     rules: "",
     contact1: "",
@@ -378,6 +380,7 @@ function AdminTournamentsTab() {
       organizerName: "",
       winningPrize: 10000,
       maxTeams: 8,
+      playersPerTeam: 0,
       registrationEndDate: "",
       rules: "",
       contact1: "",
@@ -620,10 +623,9 @@ function AdminTournamentsTab() {
               key={t.id}
               tournament={t}
               index={idx + 1}
-              registrationCount={
-                tournamentRegistrations.filter((r) => r.tournamentId === t.id)
-                  .length
-              }
+              registrations={tournamentRegistrations.filter(
+                (r) => r.tournamentId === t.id,
+              )}
               onDelete={() => deleteTournament(t.id)}
             />
           ))
@@ -636,44 +638,243 @@ function AdminTournamentsTab() {
 function TournamentListCard({
   tournament,
   index,
-  registrationCount,
+  registrations,
   onDelete,
 }: {
   tournament: Tournament;
   index: number;
-  registrationCount: number;
+  registrations: import("../types").TournamentRegistration[];
   onDelete: () => void;
 }) {
+  const [activeSection, setActiveSection] = useState<
+    "details" | "teams" | "payments"
+  >("details");
+  const [expanded, setExpanded] = useState(false);
+
   return (
     <div
-      className="bg-white rounded-xl border border-border p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3"
+      className="bg-white rounded-xl border border-border shadow-sm overflow-hidden"
       data-ocid={`admin.tournaments.item.${index}`}
     >
-      <div className="space-y-1">
-        <div className="flex items-center gap-2">
-          <TrophyIcon size={16} className="text-green-600" />
-          <span className="font-semibold text-gray-800">{tournament.name}</span>
-        </div>
-        <div className="text-sm text-gray-500 flex flex-wrap gap-x-4 gap-y-1">
-          <span>Turf: {tournament.turfName}</span>
-          <span>
-            Date: {new Date(tournament.date).toLocaleDateString("en-IN")}
-          </span>
-          <span>Prize: ₹{tournament.winningPrize.toLocaleString()}</span>
-          <span>
-            Teams: {registrationCount}/{tournament.maxTeams}
-          </span>
-          <span>Location: {tournament.location}</span>
-        </div>
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-3 bg-gradient-to-r from-green-700 to-green-600">
+        <button
+          type="button"
+          className="flex items-center gap-2 text-white font-semibold text-base flex-1 text-left"
+          onClick={() => setExpanded(!expanded)}
+        >
+          <TrophyIcon size={16} className="shrink-0" />
+          <span>{tournament.name}</span>
+          <ChevronDown
+            size={16}
+            className={`ml-auto transition-transform ${expanded ? "rotate-180" : ""}`}
+          />
+        </button>
+        <Button
+          variant="destructive"
+          size="sm"
+          className="ml-3 shrink-0"
+          onClick={onDelete}
+          data-ocid={`admin.tournaments.delete_button.${index}`}
+        >
+          <Trash2 size={14} className="mr-1" /> Delete
+        </Button>
       </div>
-      <Button
-        variant="destructive"
-        size="sm"
-        onClick={onDelete}
-        data-ocid={`admin.tournaments.delete_button.${index}`}
-      >
-        <Trash2 size={14} className="mr-1" /> Delete
-      </Button>
+
+      {/* Summary bar */}
+      <div className="flex flex-wrap gap-x-4 gap-y-1 px-4 py-2 bg-green-50 text-xs text-gray-600 border-b border-border">
+        <span>{tournament.turfName}</span>
+        <span>{new Date(tournament.date).toLocaleDateString("en-IN")}</span>
+        <span>₹{tournament.winningPrize.toLocaleString()} prize</span>
+        <span className="font-medium text-green-700">
+          {registrations.length}/{tournament.maxTeams} teams
+        </span>
+        {tournament.playersPerTeam > 0 && (
+          <span className="font-medium text-blue-700">
+            {tournament.playersPerTeam} players/team
+          </span>
+        )}
+      </div>
+
+      {expanded && (
+        <div>
+          {/* Section tabs */}
+          <div className="flex border-b border-border bg-gray-50">
+            {(["details", "teams", "payments"] as const).map((sec) => (
+              <button
+                key={sec}
+                type="button"
+                onClick={() => setActiveSection(sec)}
+                className={`flex-1 py-2 text-sm font-medium capitalize transition-colors ${
+                  activeSection === sec
+                    ? "bg-white text-green-700 border-b-2 border-green-600"
+                    : "text-gray-500 hover:text-gray-700"
+                }`}
+                data-ocid="admin.tournaments.tab"
+              >
+                {sec === "teams"
+                  ? `Teams (${registrations.length})`
+                  : sec === "payments"
+                    ? "Payments"
+                    : "Details"}
+              </button>
+            ))}
+          </div>
+
+          <div className="p-4">
+            {activeSection === "details" && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
+                <div>
+                  <span className="text-gray-400">Location:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.location || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Organizer:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.organizerName || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Entry Fee:</span>{" "}
+                  <span className="font-medium">
+                    ₹{tournament.entryFee.toLocaleString()}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Max Teams:</span>{" "}
+                  <span className="font-medium">{tournament.maxTeams}</span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Players/Team:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.playersPerTeam > 0
+                      ? tournament.playersPerTeam
+                      : "No restriction"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Reg. End Date:</span>{" "}
+                  <span className="font-medium">
+                    {new Date(
+                      tournament.registrationEndDate,
+                    ).toLocaleDateString("en-IN")}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Contact 1:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.contact1 || "—"}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-gray-400">Contact 2:</span>{" "}
+                  <span className="font-medium">
+                    {tournament.contact2 || "—"}
+                  </span>
+                </div>
+                {tournament.rules && (
+                  <div className="sm:col-span-2">
+                    <span className="text-gray-400">Rules:</span>
+                    <p className="mt-1 text-gray-700 whitespace-pre-line bg-gray-50 rounded p-2 text-xs">
+                      {tournament.rules}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "teams" && (
+              <div>
+                {registrations.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 text-sm">
+                    No teams registered yet.
+                  </p>
+                ) : (
+                  <div className="space-y-2">
+                    {registrations.map((r, i) => (
+                      <div
+                        key={r.id}
+                        className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm"
+                      >
+                        <div>
+                          <span className="font-semibold text-gray-800">
+                            #{i + 1} {r.teamName}
+                          </span>
+                          <span className="ml-3 text-gray-500">
+                            Captain: {r.captainName}
+                          </span>
+                        </div>
+                        <div className="text-gray-500 text-xs">
+                          {r.numberOfPlayers} players · {r.contact1}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            {activeSection === "payments" && (
+              <div>
+                {registrations.length === 0 ? (
+                  <p className="text-center py-6 text-gray-400 text-sm">
+                    No registrations yet.
+                  </p>
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-gray-50 border-b border-border">
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Team
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Captain
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Entry Fee
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Status
+                          </th>
+                          <th className="px-3 py-2 text-left font-medium text-gray-600">
+                            Registered At
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-border">
+                        {registrations.map((r) => (
+                          <tr key={r.id}>
+                            <td className="px-3 py-2 font-medium">
+                              {r.teamName}
+                            </td>
+                            <td className="px-3 py-2">{r.captainName}</td>
+                            <td className="px-3 py-2">
+                              ₹{tournament.entryFee.toLocaleString()}
+                            </td>
+                            <td className="px-3 py-2">
+                              <Badge className="bg-green-100 text-green-700 text-xs">
+                                Paid
+                              </Badge>
+                            </td>
+                            <td className="px-3 py-2 text-gray-500">
+                              {new Date(r.registeredAt).toLocaleDateString(
+                                "en-IN",
+                              )}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -737,6 +938,177 @@ function AdminTournamentRegsTab() {
   );
 }
 
+function AdminOwnerSettingsTab({
+  updateTurfOwner,
+}: {
+  updateTurfOwner: (
+    id: string,
+    updates: { email?: string; phone?: string; password?: string },
+  ) => void;
+}) {
+  const { users, turfs } = useApp();
+  const owners = users.filter((u) => u.role === "turfOwner");
+  const [selectedOwnerId, setSelectedOwnerId] = useState("");
+  const [form, setForm] = useState({
+    email: "",
+    phone: "",
+    password: "",
+    confirmPassword: "",
+  });
+  const [success, setSuccess] = useState("");
+  const [error, setError] = useState("");
+
+  const selectedOwner = owners.find((o) => o.id === selectedOwnerId);
+
+  function handleSelect(id: string) {
+    setSelectedOwnerId(id);
+    const o = owners.find((u) => u.id === id);
+    setForm({
+      email: o?.email ?? "",
+      phone: o?.phone ?? "",
+      password: "",
+      confirmPassword: "",
+    });
+    setSuccess("");
+    setError("");
+  }
+
+  function handleSave(e: React.FormEvent) {
+    e.preventDefault();
+    if (!selectedOwnerId) {
+      setError("Please select a turf owner.");
+      return;
+    }
+    if (form.password && form.password !== form.confirmPassword) {
+      setError("Passwords do not match.");
+      return;
+    }
+    const updates: { email?: string; phone?: string; password?: string } = {};
+    if (form.email) updates.email = form.email;
+    if (form.phone) updates.phone = form.phone;
+    if (form.password) updates.password = form.password;
+    updateTurfOwner(selectedOwnerId, updates);
+    setSuccess("Settings updated successfully!");
+    setError("");
+    setForm((prev) => ({ ...prev, password: "", confirmPassword: "" }));
+  }
+
+  return (
+    <div className="max-w-lg">
+      <h2 className="font-display font-bold text-xl mb-4">Owner Settings</h2>
+      <p className="text-muted-foreground text-sm mb-6">
+        Update email, contact number, or password for any turf owner.
+      </p>
+      <div className="bg-white rounded-2xl border border-border shadow-sm p-6 space-y-5">
+        <div className="space-y-2">
+          <Label>Select Turf Owner</Label>
+          <select
+            className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+            value={selectedOwnerId}
+            onChange={(e) => handleSelect(e.target.value)}
+            data-ocid="admin.owner-settings.select"
+          >
+            <option value="">-- Select an owner --</option>
+            {owners.map((o) => {
+              const turf = turfs.find((t) => t.id === o.assignedTurfId);
+              return (
+                <option key={o.id} value={o.id}>
+                  {o.fullName} {turf ? `(${turf.name})` : ""}
+                </option>
+              );
+            })}
+          </select>
+        </div>
+        {selectedOwner && (
+          <form onSubmit={handleSave} className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="owner-email">Email / Gmail</Label>
+              <input
+                id="owner-email"
+                type="email"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                placeholder="owner@email.com"
+                data-ocid="admin.owner-settings.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner-phone">Contact Number</Label>
+              <input
+                id="owner-phone"
+                type="tel"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                value={form.phone}
+                onChange={(e) => setForm({ ...form, phone: e.target.value })}
+                placeholder="+91 9876543210"
+                data-ocid="admin.owner-settings.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner-password">New Password</Label>
+              <input
+                id="owner-password"
+                type="password"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+                placeholder="Leave blank to keep current"
+                data-ocid="admin.owner-settings.input"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="owner-confirm-password">Confirm Password</Label>
+              <input
+                id="owner-confirm-password"
+                type="password"
+                className="w-full border border-border rounded-lg px-3 py-2 text-sm bg-background"
+                value={form.confirmPassword}
+                onChange={(e) =>
+                  setForm({ ...form, confirmPassword: e.target.value })
+                }
+                placeholder="Confirm new password"
+                data-ocid="admin.owner-settings.input"
+              />
+            </div>
+            {error && (
+              <p
+                className="text-red-600 text-sm"
+                data-ocid="admin.owner-settings.error_state"
+              >
+                {error}
+              </p>
+            )}
+            {success && (
+              <p
+                className="text-green-600 text-sm"
+                data-ocid="admin.owner-settings.success_state"
+              >
+                {success}
+              </p>
+            )}
+            <Button
+              type="submit"
+              className="bg-green-600 hover:bg-green-500 text-white w-full"
+              data-ocid="admin.owner-settings.save_button"
+            >
+              Save Changes
+            </Button>
+          </form>
+        )}
+        {owners.length === 0 && (
+          <p
+            className="text-muted-foreground text-sm text-center py-4"
+            data-ocid="admin.owner-settings.empty_state"
+          >
+            No turf owners yet.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function AdminDashboard() {
   const {
     turfs,
@@ -745,9 +1117,11 @@ export default function AdminDashboard() {
     addTurf,
     editTurf,
     deleteTurf,
+    deleteOwner,
     createTurfOwner,
     approveBooking,
     rejectBooking,
+    updateTurfOwner,
   } = useApp();
   const [turfModal, setTurfModal] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -766,6 +1140,9 @@ export default function AdminDashboard() {
     phone: "",
     turfId: "",
   });
+  const [deleteOwnerConfirm, setDeleteOwnerConfirm] = useState<string | null>(
+    null,
+  );
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
 
   const totalRevenue = bookings.reduce(
@@ -906,6 +1283,9 @@ export default function AdminDashboard() {
               </TabsTrigger>
               <TabsTrigger value="revenue" data-ocid="admin.tab">
                 Daily Revenue
+              </TabsTrigger>
+              <TabsTrigger value="owner-settings" data-ocid="admin.tab">
+                Owner Settings
               </TabsTrigger>
             </TabsList>
 
@@ -1175,6 +1555,7 @@ export default function AdminDashboard() {
                       <TableHead>Email</TableHead>
                       <TableHead>Phone</TableHead>
                       <TableHead>Assigned Turf</TableHead>
+                      <TableHead>Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
@@ -1193,6 +1574,16 @@ export default function AdminDashboard() {
                               <Badge variant="secondary">
                                 {t?.name || "Unassigned"}
                               </Badge>
+                            </TableCell>
+                            <TableCell>
+                              <Button
+                                size="sm"
+                                variant="destructive"
+                                onClick={() => setDeleteOwnerConfirm(u.id)}
+                                data-ocid={`admin.owner.delete_button.${i + 1}`}
+                              >
+                                <Trash2 size={13} />
+                              </Button>
                             </TableCell>
                           </TableRow>
                         );
@@ -1223,6 +1614,11 @@ export default function AdminDashboard() {
             {/* Daily Revenue */}
             <TabsContent value="revenue">
               <AdminRevenuePanel bookings={bookings} />
+            </TabsContent>
+
+            {/* Owner Settings */}
+            <TabsContent value="owner-settings">
+              <AdminOwnerSettingsTab updateTurfOwner={updateTurfOwner} />
             </TabsContent>
           </Tabs>
         </main>
@@ -1580,6 +1976,45 @@ export default function AdminDashboard() {
               className="flex-1"
               onClick={() => setOwnerModal(false)}
               data-ocid="admin.cancel_button"
+            >
+              Cancel
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Delete Owner confirm */}
+      <Dialog
+        open={!!deleteOwnerConfirm}
+        onOpenChange={() => setDeleteOwnerConfirm(null)}
+      >
+        <DialogContent data-ocid="admin.owner.dialog">
+          <DialogHeader>
+            <DialogTitle>Delete Turf Owner?</DialogTitle>
+          </DialogHeader>
+          <p className="text-muted-foreground text-sm">
+            This will permanently remove the turf owner account. This action
+            cannot be undone.
+          </p>
+          <div className="flex gap-3 mt-4">
+            <Button
+              variant="destructive"
+              className="flex-1"
+              onClick={() => {
+                if (deleteOwnerConfirm) {
+                  deleteOwner(deleteOwnerConfirm);
+                  setDeleteOwnerConfirm(null);
+                }
+              }}
+              data-ocid="admin.owner.confirm_button"
+            >
+              Delete Owner
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleteOwnerConfirm(null)}
+              data-ocid="admin.owner.cancel_button"
             >
               Cancel
             </Button>

@@ -14,7 +14,6 @@ import {
   ChevronDown,
   ChevronUp,
   MapPin,
-  Phone,
   QrCode,
   Trophy,
   Users,
@@ -47,7 +46,9 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
   const today = new Date().toISOString().split("T")[0];
   const isFull = registeredCount >= tournament.maxTeams;
-  const isRegClosed = today > tournament.registrationEndDate;
+  // Block registration if registration end date has passed OR tournament date has passed
+  const isRegClosed =
+    today > tournament.registrationEndDate || today > tournament.date;
   const canRegister = !isFull && !isRegClosed;
 
   const handleRegister = () => {
@@ -55,6 +56,10 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
       toast.error("Please fill in all required fields.");
       return;
     }
+    const finalPlayers =
+      tournament.playersPerTeam > 0
+        ? tournament.playersPerTeam
+        : form.numberOfPlayers;
     registerForTournament({
       tournamentId: tournament.id,
       tournamentName: tournament.name,
@@ -62,7 +67,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
       captainName: form.captainName,
       contact1: form.contact1,
       contact2: form.contact2,
-      numberOfPlayers: form.numberOfPlayers,
+      numberOfPlayers: finalPlayers,
       paymentStatus: "paid",
       userId: currentUser?.id ?? "",
     });
@@ -179,7 +184,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               Register for Tournament
             </Button>
             <p className="text-xs text-center text-red-500 font-medium">
-              Registration Closed.
+              Registration closed. The deadline for this tournament has passed.
             </p>
           </div>
         ) : (
@@ -280,21 +285,39 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               </div>
               <div>
                 <Label htmlFor="numPlayers">Number of Players *</Label>
-                <Input
-                  id="numPlayers"
-                  type="number"
-                  min={1}
-                  max={30}
-                  className="mt-1"
-                  value={form.numberOfPlayers}
-                  onChange={(e) =>
-                    setForm((p) => ({
-                      ...p,
-                      numberOfPlayers: Number(e.target.value),
-                    }))
-                  }
-                  data-ocid="tournaments.input"
-                />
+                {tournament.playersPerTeam > 0 ? (
+                  <div className="mt-1">
+                    <Input
+                      id="numPlayers"
+                      type="number"
+                      className="mt-1 bg-gray-50"
+                      value={tournament.playersPerTeam}
+                      readOnly
+                      disabled
+                      data-ocid="tournaments.input"
+                    />
+                    <p className="text-xs text-blue-600 mt-1 font-medium">
+                      Fixed: {tournament.playersPerTeam} players per team (set
+                      by organizer)
+                    </p>
+                  </div>
+                ) : (
+                  <Input
+                    id="numPlayers"
+                    type="number"
+                    min={1}
+                    max={30}
+                    className="mt-1"
+                    value={form.numberOfPlayers}
+                    onChange={(e) =>
+                      setForm((p) => ({
+                        ...p,
+                        numberOfPlayers: Number(e.target.value),
+                      }))
+                    }
+                    data-ocid="tournaments.input"
+                  />
+                )}
               </div>
 
               <Separator />
