@@ -3,7 +3,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Eye, EyeOff, Trophy } from "lucide-react";
+import { AlertCircle, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -25,7 +25,6 @@ export default function LoginPage() {
 
   const isAdmin = role === "admin";
 
-  // Pre-fill credentials when role changes if remember was set
   useEffect(() => {
     const saved = localStorage.getItem(REMEMBER_KEY(role));
     if (saved) {
@@ -61,7 +60,6 @@ export default function LoginPage() {
       }
       return;
     }
-    // Save or clear remember-me credentials
     if (rememberMe) {
       localStorage.setItem(
         REMEMBER_KEY(role),
@@ -81,18 +79,36 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[oklch(0.18_0.06_145)] to-[oklch(0.28_0.08_145)] flex items-center justify-center px-4">
+    <div
+      className="min-h-screen relative flex items-center justify-center px-4"
+      style={{
+        backgroundImage: "url('/assets/generated/login-bg.dim_1920x1080.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/70" />
+
+      {/* Decorative orbs */}
+      <div className="absolute top-1/4 left-1/4 w-64 h-64 bg-green-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/3 right-1/4 w-80 h-80 bg-emerald-500/8 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 w-48 h-48 bg-green-400/5 rounded-full blur-2xl pointer-events-none" />
+
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
+        <div className="glass-dark neon-border rounded-3xl shadow-glass overflow-hidden">
           {/* Header */}
-          <div className="bg-[oklch(0.22_0.06_145)] px-8 pt-10 pb-8">
+          <div className="bg-gradient-to-br from-[#061209] to-[#0d2612] px-8 pt-10 pb-8">
             <Link to="/" className="flex items-center gap-2 mb-6">
-              <Trophy size={26} className="text-green-400" />
+              <img
+                src="/assets/generated/turfmate-icon-transparent.dim_200x200.png"
+                alt="TurfMate"
+                className="w-10 h-10 object-contain"
+              />
               <span className="font-display font-bold text-xl text-white">
                 Turf<span className="text-green-400">Mate</span>
               </span>
@@ -100,7 +116,7 @@ export default function LoginPage() {
             <h1 className="font-display font-bold text-3xl text-white">
               Welcome back!
             </h1>
-            <p className="text-green-200 mt-1">Sign in to your account</p>
+            <p className="text-green-300/70 mt-1">Sign in to your account</p>
           </div>
 
           <div className="px-8 py-6">
@@ -112,24 +128,24 @@ export default function LoginPage() {
                 setError("");
               }}
             >
-              <TabsList className="w-full mb-6 bg-muted">
+              <TabsList className="w-full mb-6 bg-white/5 border border-white/10">
                 <TabsTrigger
                   value="user"
-                  className="flex-1"
+                  className="flex-1 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-neon-green text-white/60"
                   data-ocid="login.tab"
                 >
                   User
                 </TabsTrigger>
                 <TabsTrigger
                   value="turfOwner"
-                  className="flex-1"
+                  className="flex-1 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-neon-green text-white/60"
                   data-ocid="login.tab"
                 >
                   Turf Owner
                 </TabsTrigger>
                 <TabsTrigger
                   value="admin"
-                  className="flex-1"
+                  className="flex-1 data-[state=active]:bg-green-600 data-[state=active]:text-white data-[state=active]:shadow-neon-green text-white/60"
                   data-ocid="login.tab"
                 >
                   Admin
@@ -139,7 +155,7 @@ export default function LoginPage() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="identifier">
+                <Label htmlFor="identifier" className="text-green-300 text-sm">
                   {isAdmin ? "Admin ID" : "Email"}
                 </Label>
                 <Input
@@ -149,13 +165,15 @@ export default function LoginPage() {
                   value={identifier}
                   onChange={(e) => setIdentifier(e.target.value)}
                   required
-                  className="mt-1"
+                  className="mt-1 bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70 focus:ring-1 focus:ring-green-400/30"
                   autoComplete={isAdmin ? "username" : "email"}
                   data-ocid="login.input"
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-green-300 text-sm">
+                  Password
+                </Label>
                 <div className="relative mt-1">
                   <Input
                     id="password"
@@ -165,11 +183,12 @@ export default function LoginPage() {
                     onChange={(e) => setPassword(e.target.value)}
                     required
                     autoComplete="current-password"
+                    className="bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70 focus:ring-1 focus:ring-green-400/30"
                     data-ocid="login.input"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70"
                     onClick={() => setShowPwd(!showPwd)}
                   >
                     {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -177,7 +196,6 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              {/* Remember Me — all roles */}
               <div className="flex items-center gap-2">
                 <Checkbox
                   id="rememberMe"
@@ -187,7 +205,7 @@ export default function LoginPage() {
                 />
                 <Label
                   htmlFor="rememberMe"
-                  className="text-sm text-muted-foreground cursor-pointer select-none"
+                  className="text-sm text-green-300/70 cursor-pointer select-none"
                 >
                   Remember Me
                 </Label>
@@ -195,7 +213,7 @@ export default function LoginPage() {
 
               {error && (
                 <div
-                  className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm"
+                  className="flex items-center gap-2 bg-red-950/50 border border-red-500/30 text-red-300 rounded-lg p-3 text-sm"
                   data-ocid="login.error_state"
                 >
                   <AlertCircle size={16} />
@@ -205,7 +223,10 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold h-11"
+                className={`w-full text-white font-semibold h-11 rounded-xl transition-all shadow-premium border-0 ${!loading ? "animate-pulse-glow" : ""}`}
+                style={{
+                  background: "linear-gradient(135deg, #16a34a, #059669)",
+                }}
                 disabled={loading}
                 data-ocid="login.submit_button"
               >
@@ -224,7 +245,7 @@ export default function LoginPage() {
               <button
                 type="button"
                 onClick={fillDemo}
-                className="w-full text-center text-xs text-green-600 hover:text-green-800 mt-3 underline"
+                className="w-full text-center text-xs text-green-400/70 hover:text-green-300 mt-3 underline"
                 data-ocid="login.secondary_button"
               >
                 Fill demo credentials
@@ -232,11 +253,11 @@ export default function LoginPage() {
             )}
 
             {!isAdmin && (
-              <p className="text-center text-sm text-muted-foreground mt-6">
+              <p className="text-center text-sm text-white/50 mt-6">
                 Don't have an account?{" "}
                 <Link
                   to="/signup"
-                  className="text-green-600 hover:underline font-medium"
+                  className="text-green-400 hover:text-green-300 font-medium"
                   data-ocid="login.link"
                 >
                   Sign Up

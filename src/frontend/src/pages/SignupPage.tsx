@@ -1,7 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { AlertCircle, CheckCircle, Eye, EyeOff, Trophy } from "lucide-react";
+import { AlertCircle, CheckCircle, Eye, EyeOff } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
@@ -59,17 +59,34 @@ export default function SignupPage() {
         : "weak";
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[oklch(0.18_0.06_145)] to-[oklch(0.28_0.08_145)] flex items-center justify-center px-4 py-10">
+    <div
+      className="min-h-screen relative flex items-center justify-center px-4 py-10"
+      style={{
+        backgroundImage: "url('/assets/generated/login-bg.dim_1920x1080.jpg')",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+      }}
+    >
+      <div className="absolute inset-0 bg-black/70" />
+
+      {/* Decorative orbs */}
+      <div className="absolute top-1/3 right-1/4 w-64 h-64 bg-green-600/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 left-1/4 w-72 h-72 bg-emerald-500/8 rounded-full blur-3xl pointer-events-none" />
+
       <motion.div
         initial={{ opacity: 0, scale: 0.95 }}
         animate={{ opacity: 1, scale: 1 }}
         transition={{ duration: 0.4 }}
-        className="w-full max-w-md"
+        className="w-full max-w-md relative z-10"
       >
-        <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
-          <div className="bg-[oklch(0.22_0.06_145)] px-8 pt-10 pb-8">
+        <div className="glass-dark neon-border rounded-3xl shadow-glass overflow-hidden">
+          <div className="bg-gradient-to-br from-[#061209] to-[#0d2612] px-8 pt-10 pb-8">
             <Link to="/" className="flex items-center gap-2 mb-6">
-              <Trophy size={26} className="text-green-400" />
+              <img
+                src="/assets/generated/turfmate-icon-transparent.dim_200x200.png"
+                alt="TurfMate"
+                className="w-10 h-10 object-contain"
+              />
               <span className="font-display font-bold text-xl text-white">
                 Turf<span className="text-green-400">Mate</span>
               </span>
@@ -77,7 +94,7 @@ export default function SignupPage() {
             <h1 className="font-display font-bold text-3xl text-white">
               Create Account
             </h1>
-            <p className="text-green-200 mt-1">
+            <p className="text-green-300/70 mt-1">
               Join TurfMate today — it's free!
             </p>
           </div>
@@ -85,19 +102,23 @@ export default function SignupPage() {
           <div className="px-8 py-6">
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <Label htmlFor="fullName">Full Name</Label>
+                <Label htmlFor="fullName" className="text-green-300 text-sm">
+                  Full Name
+                </Label>
                 <Input
                   id="fullName"
                   placeholder="Arjun Sharma"
                   value={form.fullName}
                   onChange={set("fullName")}
                   required
-                  className="mt-1"
+                  className="mt-1 bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70"
                   data-ocid="signup.input"
                 />
               </div>
               <div>
-                <Label htmlFor="phone">Phone Number</Label>
+                <Label htmlFor="phone" className="text-green-300 text-sm">
+                  Phone Number
+                </Label>
                 <Input
                   id="phone"
                   type="tel"
@@ -105,13 +126,15 @@ export default function SignupPage() {
                   value={form.phone}
                   onChange={set("phone")}
                   required
-                  className="mt-1"
+                  className="mt-1 bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70"
                   maxLength={10}
                   data-ocid="signup.input"
                 />
               </div>
               <div>
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="email" className="text-green-300 text-sm">
+                  Email
+                </Label>
                 <Input
                   id="email"
                   type="email"
@@ -119,12 +142,14 @@ export default function SignupPage() {
                   value={form.email}
                   onChange={set("email")}
                   required
-                  className="mt-1"
+                  className="mt-1 bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70"
                   data-ocid="signup.input"
                 />
               </div>
               <div>
-                <Label htmlFor="password">Password</Label>
+                <Label htmlFor="password" className="text-green-300 text-sm">
+                  Password
+                </Label>
                 <div className="relative mt-1">
                   <Input
                     id="password"
@@ -133,11 +158,12 @@ export default function SignupPage() {
                     value={form.password}
                     onChange={set("password")}
                     required
+                    className="bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70"
                     data-ocid="signup.input"
                   />
                   <button
                     type="button"
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground"
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/70"
                     onClick={() => setShowPwd(!showPwd)}
                   >
                     {showPwd ? <EyeOff size={16} /> : <Eye size={16} />}
@@ -150,14 +176,14 @@ export default function SignupPage() {
                         key={s}
                         className={`h-1 flex-1 rounded-full transition-all ${
                           s === "weak"
-                            ? "bg-red-400"
+                            ? "bg-red-500"
                             : s === "medium" &&
                                 (passwordStrength === "medium" ||
                                   passwordStrength === "strong")
                               ? "bg-yellow-400"
                               : s === "strong" && passwordStrength === "strong"
                                 ? "bg-green-500"
-                                : "bg-gray-200"
+                                : "bg-white/10"
                         }`}
                       />
                     ))}
@@ -165,7 +191,9 @@ export default function SignupPage() {
                 )}
               </div>
               <div>
-                <Label htmlFor="confirm">Confirm Password</Label>
+                <Label htmlFor="confirm" className="text-green-300 text-sm">
+                  Confirm Password
+                </Label>
                 <div className="relative mt-1">
                   <Input
                     id="confirm"
@@ -174,13 +202,14 @@ export default function SignupPage() {
                     value={form.confirmPassword}
                     onChange={set("confirmPassword")}
                     required
+                    className="bg-white/5 border-white/15 text-white placeholder:text-white/40 focus:border-green-400/70"
                     data-ocid="signup.input"
                   />
                   {form.confirmPassword &&
                     form.password === form.confirmPassword && (
                       <CheckCircle
                         size={16}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-green-500"
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-green-400"
                       />
                     )}
                 </div>
@@ -188,7 +217,7 @@ export default function SignupPage() {
 
               {error && (
                 <div
-                  className="flex items-center gap-2 bg-red-50 border border-red-200 text-red-700 rounded-lg p-3 text-sm"
+                  className="flex items-center gap-2 bg-red-950/50 border border-red-500/30 text-red-300 rounded-lg p-3 text-sm"
                   data-ocid="signup.error_state"
                 >
                   <AlertCircle size={16} />
@@ -198,7 +227,10 @@ export default function SignupPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-green-600 hover:bg-green-500 text-white font-semibold h-11"
+                className="w-full text-white font-semibold h-11 rounded-xl transition-all shadow-premium border-0"
+                style={{
+                  background: "linear-gradient(135deg, #16a34a, #059669)",
+                }}
                 disabled={loading}
                 data-ocid="signup.submit_button"
               >
@@ -213,11 +245,11 @@ export default function SignupPage() {
               </Button>
             </form>
 
-            <p className="text-center text-sm text-muted-foreground mt-6">
+            <p className="text-center text-sm text-white/50 mt-6">
               Already have an account?{" "}
               <Link
                 to="/login"
-                className="text-green-600 hover:underline font-medium"
+                className="text-green-400 hover:text-green-300 font-medium"
                 data-ocid="signup.link"
               >
                 Sign In

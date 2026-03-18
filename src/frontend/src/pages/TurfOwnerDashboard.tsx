@@ -48,7 +48,7 @@ function OwnerRevenueContent() {
     if (!map[b.date]) map[b.date] = { totalBookings: 0, totalRevenue: 0 };
     map[b.date].totalBookings += 1;
     map[b.date].totalRevenue +=
-      b.paymentType === "advance" ? b.advanceAmount : b.totalPrice;
+      b.paymentStatus === "fullyPaid" ? b.totalPrice : b.advanceAmount;
   }
   const entries = Object.entries(map)
     .map(([date, v]) => ({ date, ...v }))
@@ -285,6 +285,19 @@ function OwnerTournamentsTab() {
 
   const handleSubmit = () => {
     if (!form.name || !form.date || !form.registrationEndDate) return;
+    const now = new Date();
+    const tournamentDate = new Date(form.date);
+    if (tournamentDate <= now) {
+      alert("Tournament date has already passed. Please select a future date.");
+      return;
+    }
+    const regEndDate = new Date(form.registrationEndDate);
+    if (regEndDate <= now) {
+      alert(
+        "Registration end date has already passed. Please select a future date.",
+      );
+      return;
+    }
     createTournament({
       ...form,
       turfId: myTurfId,
@@ -731,26 +744,80 @@ function OwnerTournamentCard({
             {activeSection === "teams" && (
               <div>
                 {registrations.length === 0 ? (
-                  <p className="text-center py-6 text-gray-400 text-sm">
+                  <p
+                    className="text-center py-6 text-gray-400 text-sm"
+                    data-ocid="owner.tournaments.teams.empty_state"
+                  >
                     No teams registered yet.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500 font-medium mb-2">
+                      {registrations.length} team
+                      {registrations.length !== 1 ? "s" : ""} registered
+                    </p>
                     {registrations.map((r, i) => (
                       <div
                         key={r.id}
-                        className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm"
+                        className="bg-gradient-to-r from-green-50 to-white border border-green-100 rounded-xl p-4 text-sm"
+                        data-ocid={`owner.tournaments.teams.item.${i + 1}`}
                       >
-                        <div>
-                          <span className="font-semibold text-gray-800">
-                            #{i + 1} {r.teamName}
-                          </span>
-                          <span className="ml-3 text-gray-500">
-                            Captain: {r.captainName}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-7 h-7 flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold shrink-0">
+                              {i + 1}
+                            </span>
+                            <span className="font-bold text-gray-800 text-base">
+                              {r.teamName}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.paymentStatus === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
+                          >
+                            {r.paymentStatus === "paid" ? "Paid" : "Pending"}
                           </span>
                         </div>
-                        <div className="text-gray-500 text-xs">
-                          {r.numberOfPlayers} players · {r.contact1}
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Captain
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.captainName}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Players
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.numberOfPlayers}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Contact 1
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.contact1 || "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Contact 2
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.contact2 || "—"}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400 text-xs">
+                              Registered At
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {new Date(r.registeredAt).toLocaleString("en-IN")}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -825,74 +892,132 @@ function OwnerTournamentCard({
 function OwnerTournamentRegsTab() {
   const { currentUser, tournamentRegistrations, tournaments } = useApp();
   const myTurfId = currentUser?.assignedTurfId ?? "";
-  const myTournamentIds = tournaments
-    .filter((t) => t.turfId === myTurfId || t.createdBy === currentUser?.id)
-    .map((t) => t.id);
+  const myTournaments = tournaments.filter(
+    (t) => t.turfId === myTurfId || t.createdBy === currentUser?.id,
+  );
+  const myTournamentIds = myTournaments.map((t) => t.id);
   const myRegs = tournamentRegistrations.filter((r) =>
     myTournamentIds.includes(r.tournamentId),
   );
 
+  // Group registrations by tournament
+  const grouped = myTournaments.reduce<
+    Record<
+      string,
+      { tournament: (typeof myTournaments)[0]; regs: typeof myRegs }
+    >
+  >((acc, t) => {
+    const regs = myRegs.filter((r) => r.tournamentId === t.id);
+    if (regs.length > 0) {
+      acc[t.id] = { tournament: t, regs };
+    }
+    return acc;
+  }, {});
+  const groupKeys = Object.keys(grouped);
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h2 className="font-display font-bold text-xl flex items-center gap-2">
         <ClipboardCheck size={20} className="text-green-600" /> Tournament
         Registrations
       </h2>
       {myRegs.length === 0 ? (
         <div
-          className="text-center py-12 text-gray-400"
+          className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200"
           data-ocid="owner.tournament-registrations.empty_state"
         >
           No team registrations yet.
         </div>
       ) : (
         <div
-          className="overflow-x-auto rounded-xl border border-border"
+          className="space-y-6"
           data-ocid="owner.tournament-registrations.table"
         >
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-border">
-              <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Tournament
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Team Name
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Captain
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Contact 1
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Players
-                </th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">
-                  Payment
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border bg-white">
-              {myRegs.map((r, idx) => (
-                <tr
-                  key={r.id}
-                  data-ocid={`owner.tournament-registrations.row.${idx + 1}`}
-                >
-                  <td className="px-4 py-3 font-medium">{r.tournamentName}</td>
-                  <td className="px-4 py-3">{r.teamName}</td>
-                  <td className="px-4 py-3">{r.captainName}</td>
-                  <td className="px-4 py-3">{r.contact1}</td>
-                  <td className="px-4 py-3">{r.numberOfPlayers}</td>
-                  <td className="px-4 py-3">
-                    <span className="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-medium">
-                      Paid
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+          {groupKeys.map((tId, gIdx) => {
+            const { tournament, regs } = grouped[tId];
+            return (
+              <div
+                key={tId}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+                data-ocid={`owner.tournament-registrations.panel.${gIdx + 1}`}
+              >
+                {/* Tournament Header */}
+                <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <TrophyIcon size={20} className="text-white" />
+                    <div>
+                      <h3 className="text-white font-bold text-lg">
+                        {tournament.name}
+                      </h3>
+                      <p className="text-green-100 text-sm">
+                        {tournament.location} &bull; {tournament.date}
+                      </p>
+                    </div>
+                  </div>
+                  <span className="bg-white/20 text-white text-sm font-semibold px-3 py-1 rounded-full">
+                    {regs.length} / {tournament.maxTeams} Teams
+                  </span>
+                </div>
+                {/* Registrations Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          #
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Team Name
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Captain
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Contact 1
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Players
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Payment
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {regs.map((r, idx) => (
+                        <tr
+                          key={r.id}
+                          className="hover:bg-green-50 transition-colors"
+                          data-ocid={`owner.tournament-registrations.row.${idx + 1}`}
+                        >
+                          <td className="px-4 py-3 text-gray-400 font-medium">
+                            {idx + 1}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-800">
+                            {r.teamName}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.captainName}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.contact1}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.numberOfPlayers}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              ✓ Paid
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -915,10 +1040,16 @@ export default function TurfOwnerDashboard() {
   const [date, setDate] = useState(today);
   const [dateSlots, setDateSlots] = useState<TimeSlot[]>([]);
   const [editForm, setEditForm] = useState({
+    name: turf?.name ?? "",
+    location: turf?.location ?? "",
+    description: turf?.description ?? "",
     pricePerHour: turf?.pricePerHour ?? 0,
     nightPricePerHour: turf?.nightPricePerHour ?? 0,
-    description: turf?.description ?? "",
+    advanceAmount: turf?.advanceAmount ?? 0,
+    openTime: turf?.openTime ?? "6:00 AM",
+    closeTime: turf?.closeTime ?? "11:00 PM",
     facilities: turf?.facilities?.join(", ") ?? "",
+    safetyInfo: turf?.safetyInfo?.join(", ") ?? "",
   });
   const [editSaved, setEditSaved] = useState(false);
   const imgRef = useRef<HTMLInputElement>(null);
@@ -963,17 +1094,33 @@ export default function TurfOwnerDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#050c06]">
       <Navbar />
       <main className="pt-16 pb-12">
         {/* Header */}
-        <div className="bg-[oklch(0.22_0.06_145)] text-white py-8 px-4">
-          <div className="max-w-6xl mx-auto">
+        <div
+          className="relative text-white py-8 px-4 overflow-hidden"
+          style={{
+            backgroundImage:
+              "url(/assets/generated/dashboard-bg.dim_1920x1080.jpg)",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div
+            className="absolute inset-0 bg-[#061209]/80"
+            style={{
+              backgroundImage:
+                "url(/assets/generated/turf-hero-bg.dim_1920x1080.jpg)",
+              backgroundSize: "cover",
+            }}
+          />
+          <div className="max-w-6xl mx-auto relative z-10">
             <div className="flex flex-col sm:flex-row gap-4 items-start">
               <img
                 src={turf.imageUrl}
                 alt={turf.name}
-                className="w-20 h-20 rounded-xl object-cover"
+                className="w-20 h-20 rounded-xl object-cover ring-2 ring-green-400/50"
               />
               <div>
                 <h1 className="font-display font-bold text-3xl">{turf.name}</h1>
@@ -1053,14 +1200,14 @@ export default function TurfOwnerDashboard() {
                   </div>
                 </div>
 
-                <div className="flex gap-3 mb-4 text-xs">
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-green-200 border border-green-400 rounded" />
-                    Available (click to book)
+                <div className="flex flex-wrap gap-4 mb-4 text-xs font-semibold">
+                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-green-600/20 border border-green-500/40 text-green-300">
+                    <span className="w-3.5 h-3.5 rounded bg-gradient-to-br from-green-500 to-green-700 border border-green-400 shadow-[0_0_6px_rgba(74,222,128,0.5)]" />
+                    Available – click to mark booked
                   </span>
-                  <span className="flex items-center gap-1">
-                    <span className="w-3 h-3 bg-red-100 border border-red-400 rounded" />
-                    Booked (click to reopen)
+                  <span className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-red-600/20 border border-red-500/40 text-red-300">
+                    <span className="w-3.5 h-3.5 rounded bg-gradient-to-br from-red-500 to-red-700 border border-red-400 shadow-[0_0_6px_rgba(239,68,68,0.5)]" />
+                    Booked – click to reopen
                   </span>
                 </div>
 
@@ -1164,6 +1311,35 @@ export default function TurfOwnerDashboard() {
                   </h2>
                 </div>
                 <div className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Turf Name</Label>
+                      <Input
+                        className="mt-1"
+                        value={editForm.name}
+                        onChange={(e) =>
+                          setEditForm((f) => ({ ...f, name: e.target.value }))
+                        }
+                        placeholder="e.g. Green Arena"
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                    <div>
+                      <Label>Location</Label>
+                      <Input
+                        className="mt-1"
+                        value={editForm.location}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            location: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. Kolhapur, MH"
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                  </div>
                   <div>
                     <Label>Description</Label>
                     <Textarea
@@ -1212,6 +1388,53 @@ export default function TurfOwnerDashboard() {
                     </div>
                   </div>
                   <div>
+                    <Label>Advance Payment Amount (₹)</Label>
+                    <Input
+                      className="mt-1"
+                      type="number"
+                      value={editForm.advanceAmount}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          advanceAmount: Number(e.target.value),
+                        }))
+                      }
+                      data-ocid="owner.input"
+                    />
+                  </div>
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <Label>Open Time</Label>
+                      <Input
+                        className="mt-1"
+                        value={editForm.openTime}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            openTime: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 6:00 AM"
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                    <div>
+                      <Label>Close Time</Label>
+                      <Input
+                        className="mt-1"
+                        value={editForm.closeTime}
+                        onChange={(e) =>
+                          setEditForm((f) => ({
+                            ...f,
+                            closeTime: e.target.value,
+                          }))
+                        }
+                        placeholder="e.g. 11:00 PM"
+                        data-ocid="owner.input"
+                      />
+                    </div>
+                  </div>
+                  <div>
                     <Label>Facilities (comma-separated)</Label>
                     <Input
                       className="mt-1"
@@ -1223,6 +1446,21 @@ export default function TurfOwnerDashboard() {
                         }))
                       }
                       placeholder="e.g. Floodlights, Parking, Changing Rooms"
+                      data-ocid="owner.input"
+                    />
+                  </div>
+                  <div>
+                    <Label>Safety Info (comma-separated)</Label>
+                    <Input
+                      className="mt-1"
+                      value={editForm.safetyInfo}
+                      onChange={(e) =>
+                        setEditForm((f) => ({
+                          ...f,
+                          safetyInfo: e.target.value,
+                        }))
+                      }
+                      placeholder="e.g. First Aid Kit, CCTV"
                       data-ocid="owner.input"
                     />
                   </div>
@@ -1275,10 +1513,19 @@ export default function TurfOwnerDashboard() {
                     onClick={() => {
                       if (!turf) return;
                       editTurf(turf.id, {
+                        name: editForm.name,
+                        location: editForm.location,
                         description: editForm.description,
                         pricePerHour: editForm.pricePerHour,
                         nightPricePerHour: editForm.nightPricePerHour,
+                        advanceAmount: editForm.advanceAmount,
+                        openTime: editForm.openTime,
+                        closeTime: editForm.closeTime,
                         facilities: editForm.facilities
+                          .split(",")
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                        safetyInfo: editForm.safetyInfo
                           .split(",")
                           .map((s) => s.trim())
                           .filter(Boolean),

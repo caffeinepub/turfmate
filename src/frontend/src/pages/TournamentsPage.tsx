@@ -46,7 +46,6 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
 
   const today = new Date().toISOString().split("T")[0];
   const isFull = registeredCount >= tournament.maxTeams;
-  // Block registration if registration end date has passed OR tournament date has passed
   const isRegClosed =
     today > tournament.registrationEndDate || today > tournament.date;
   const canRegister = !isFull && !isRegClosed;
@@ -85,48 +84,77 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
     }, 1800);
   };
 
+  const teamFillPercent = Math.min(
+    100,
+    Math.round((registeredCount / tournament.maxTeams) * 100),
+  );
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
+      className="bg-[#0c1508] border border-amber-900/30 hover:border-amber-500/30 hover:shadow-[0_0_20px_rgba(245,158,11,0.15)] hover:-translate-y-1 transition-all duration-300 rounded-2xl overflow-hidden"
       data-ocid="tournaments.card"
     >
       {/* Card Header */}
-      <div className="bg-gradient-to-r from-green-700 to-green-600 px-5 py-4">
-        <div className="flex items-start justify-between gap-2">
-          <h3 className="font-display font-bold text-white text-lg leading-tight">
-            {tournament.name}
-          </h3>
-          <Badge className="bg-yellow-400 text-yellow-900 shrink-0 font-bold">
-            ₹{tournament.winningPrize.toLocaleString()}
-          </Badge>
+      <div
+        className="relative px-5 py-4 overflow-hidden"
+        style={{
+          background:
+            "linear-gradient(135deg, rgba(120,53,15,0.5), rgba(92,56,8,0.4))",
+        }}
+      >
+        <div
+          className="absolute inset-0 opacity-10"
+          style={{
+            backgroundImage:
+              "url('/assets/generated/tournament-bg.dim_1920x600.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        />
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="font-display font-bold text-white text-lg leading-tight">
+              {tournament.name}
+            </h3>
+            <span
+              className="shrink-0 text-white font-bold text-sm px-3 py-1 rounded-full"
+              style={{
+                background:
+                  "linear-gradient(135deg, rgba(161,98,7,0.9), rgba(120,53,15,0.9))",
+                border: "1px solid rgba(251,191,36,0.4)",
+              }}
+            >
+              ₹{tournament.winningPrize.toLocaleString()}
+            </span>
+          </div>
+          <p className="text-amber-200/70 text-sm mt-1 flex items-center gap-1">
+            <Trophy size={12} /> {tournament.turfName}
+          </p>
         </div>
-        <p className="text-green-200 text-sm mt-1 flex items-center gap-1">
-          <Trophy size={12} /> {tournament.turfName}
-        </p>
       </div>
 
       {/* Card Body */}
       <div className="p-5 space-y-3">
         <div className="grid grid-cols-2 gap-3 text-sm">
-          <div className="flex items-center gap-2 text-gray-600">
-            <MapPin size={14} className="text-green-600 shrink-0" />
+          <div className="flex items-center gap-2 text-white/60">
+            <MapPin size={14} className="text-amber-500/70 shrink-0" />
             <span>{tournament.location}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <CalendarDays size={14} className="text-green-600 shrink-0" />
+          <div className="flex items-center gap-2 text-white/60">
+            <CalendarDays size={14} className="text-amber-500/70 shrink-0" />
             <span>{new Date(tournament.date).toLocaleDateString("en-IN")}</span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <Users size={14} className="text-green-600 shrink-0" />
+          <div className="flex items-center gap-2 text-white/60">
+            <Users size={14} className="text-amber-500/70 shrink-0" />
             <span>
               {registeredCount} / {tournament.maxTeams} Teams
             </span>
           </div>
-          <div className="flex items-center gap-2 text-gray-600">
-            <CalendarDays size={14} className="text-orange-500 shrink-0" />
-            <span className="text-orange-600 font-medium">
+          <div className="flex items-center gap-2">
+            <CalendarDays size={14} className="text-amber-400 shrink-0" />
+            <span className="text-amber-400 font-medium text-xs">
               Reg. ends:{" "}
               {new Date(tournament.registrationEndDate).toLocaleDateString(
                 "en-IN",
@@ -135,9 +163,23 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
           </div>
         </div>
 
+        {/* Team progress */}
+        <div>
+          <div className="flex justify-between text-xs text-white/40 mb-1">
+            <span>Teams Registered</span>
+            <span>{teamFillPercent}%</span>
+          </div>
+          <div className="h-2 bg-amber-900/30 rounded-full overflow-hidden">
+            <div
+              className="h-full bg-amber-500 rounded-full transition-all duration-500"
+              style={{ width: `${teamFillPercent}%` }}
+            />
+          </div>
+        </div>
+
         <div className="flex items-center justify-between text-sm">
-          <span className="text-gray-500">Entry Fee:</span>
-          <span className="font-bold text-green-700">
+          <span className="text-white/40">Entry Fee:</span>
+          <span className="font-bold text-amber-400">
             ₹{tournament.entryFee.toLocaleString()}
           </span>
         </div>
@@ -146,7 +188,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
         <button
           type="button"
           onClick={() => setShowRules(!showRules)}
-          className="flex items-center gap-1 text-sm text-green-700 font-medium hover:underline"
+          className="flex items-center gap-1 text-sm text-amber-400/70 font-medium hover:text-amber-300 transition-colors"
           data-ocid="tournaments.toggle"
         >
           {showRules ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
@@ -161,7 +203,7 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
               exit={{ opacity: 0, height: 0 }}
               className="overflow-hidden"
             >
-              <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 whitespace-pre-line border border-border">
+              <div className="bg-amber-950/30 border border-amber-800/30 rounded-lg p-3 text-sm text-amber-100/60 whitespace-pre-line">
                 {tournament.rules || "No rules specified."}
               </div>
             </motion.div>
@@ -171,30 +213,41 @@ function TournamentCard({ tournament }: { tournament: Tournament }) {
         {/* CTA */}
         {isFull ? (
           <div className="space-y-1">
-            <Button disabled className="w-full" data-ocid="tournaments.button">
+            <button
+              type="button"
+              disabled
+              className="w-full bg-gray-900/50 border border-gray-700/40 text-gray-500 rounded-xl cursor-not-allowed py-2 text-sm font-semibold"
+              data-ocid="tournaments.button"
+            >
               Register for Tournament
-            </Button>
-            <p className="text-xs text-center text-red-500 font-medium">
+            </button>
+            <p className="text-xs text-center text-red-400/70 font-medium">
               Registration Closed – Maximum Teams Reached.
             </p>
           </div>
         ) : isRegClosed ? (
           <div className="space-y-1">
-            <Button disabled className="w-full" data-ocid="tournaments.button">
+            <button
+              type="button"
+              disabled
+              className="w-full bg-gray-900/50 border border-gray-700/40 text-gray-500 rounded-xl cursor-not-allowed py-2 text-sm font-semibold"
+              data-ocid="tournaments.button"
+            >
               Register for Tournament
-            </Button>
-            <p className="text-xs text-center text-red-500 font-medium">
+            </button>
+            <p className="text-xs text-center text-red-400/70 font-medium">
               Registration closed. The deadline for this tournament has passed.
             </p>
           </div>
         ) : (
-          <Button
-            className="w-full bg-green-600 hover:bg-green-700 text-white"
+          <button
+            type="button"
+            className="btn-amber w-full text-sm py-2"
             onClick={() => setRegisterOpen(true)}
             data-ocid="tournaments.primary_button"
           >
             Register for Tournament
-          </Button>
+          </button>
         )}
       </div>
 
@@ -381,44 +434,73 @@ export default function TournamentsPage() {
   if (!currentUser) return <Navigate to="/login" replace />;
 
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-[#060e07]">
       <Navbar />
-      <main className="pt-20 pb-16">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6">
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
-          >
-            <div className="flex items-center gap-3 mb-2">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <Trophy size={22} className="text-green-700" />
+      <main className="pt-16 pb-16">
+        {/* Hero */}
+        <div
+          className="relative overflow-hidden"
+          style={{
+            backgroundImage:
+              "url('/assets/generated/tournament-bg.dim_1920x600.jpg')",
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }}
+        >
+          <div className="absolute inset-0 bg-black/65" />
+          <div className="relative z-10 py-20 px-4">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="max-w-6xl mx-auto text-center"
+            >
+              <div className="flex justify-center mb-4">
+                <div className="w-16 h-16 bg-amber-500/20 border border-amber-400/40 rounded-2xl flex items-center justify-center backdrop-blur-sm">
+                  <Trophy size={32} className="text-amber-300" />
+                </div>
               </div>
-              <div>
-                <h1 className="font-display font-bold text-2xl sm:text-3xl text-gray-900">
-                  Available Tournaments
-                </h1>
-                <p className="text-gray-500 text-sm">
-                  Join a tournament, bring your team, and compete for glory
-                </p>
-              </div>
+              <h1 className="font-display font-black text-4xl sm:text-5xl text-white neon-text mb-3">
+                Tournaments
+              </h1>
+              <p className="text-amber-200/70 text-lg">
+                Join a tournament, bring your team, and compete for glory
+              </p>
+            </motion.div>
+          </div>
+        </div>
+
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-10">
+          <div className="mb-8">
+            <div
+              className="section-header-line"
+              style={
+                {
+                  "--before-color":
+                    "linear-gradient(to bottom, #f59e0b, #d97706)",
+                } as React.CSSProperties
+              }
+            >
+              <h2 className="font-display font-bold text-2xl text-white flex items-center gap-2">
+                <Trophy size={22} className="text-amber-400" />
+                Available Tournaments
+              </h2>
             </div>
-          </motion.div>
+          </div>
 
           {tournaments.length === 0 ? (
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="flex flex-col items-center justify-center py-24 text-center"
+              className="glass-dark rounded-2xl flex flex-col items-center justify-center py-24 text-center border border-amber-900/20"
               data-ocid="tournaments.empty_state"
             >
-              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mb-4">
-                <Trophy size={36} className="text-green-400" />
+              <div className="w-20 h-20 bg-amber-500/10 border border-amber-500/20 rounded-full flex items-center justify-center mb-4">
+                <Trophy size={36} className="text-amber-400/50" />
               </div>
-              <h3 className="font-display font-semibold text-lg text-gray-700 mb-1">
+              <h3 className="font-display font-semibold text-lg text-white/60 mb-1">
                 No Tournaments Available
               </h3>
-              <p className="text-gray-400 text-sm max-w-xs">
+              <p className="text-white/30 text-sm max-w-xs">
                 No tournaments have been created yet. Check back soon!
               </p>
             </motion.div>
@@ -432,7 +514,7 @@ export default function TournamentsPage() {
         </div>
       </main>
 
-      <footer className="bg-[oklch(0.15_0.05_145)] text-gray-400 py-6 text-center text-sm">
+      <footer className="bg-[#030806] text-gray-400 py-6 text-center text-sm border-t border-green-900/20">
         <p>
           © {new Date().getFullYear()}. Built with ❤️ using{" "}
           <a

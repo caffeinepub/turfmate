@@ -238,7 +238,7 @@ function computeDailyRevenue(
     if (!map[b.date]) map[b.date] = { totalBookings: 0, totalRevenue: 0 };
     map[b.date].totalBookings += 1;
     map[b.date].totalRevenue +=
-      b.paymentType === "advance" ? b.advanceAmount : b.totalPrice;
+      b.paymentStatus === "fullyPaid" ? b.totalPrice : b.advanceAmount;
   }
   return Object.entries(map)
     .map(([date, v]) => ({ date, ...v }))
@@ -247,16 +247,23 @@ function computeDailyRevenue(
 
 function AdminRevenuePanel({
   bookings,
-}: { bookings: import("../types").Booking[] }) {
+  turfs,
+}: {
+  bookings: import("../types").Booking[];
+  turfs: import("../types").Turf[];
+}) {
   const entries = computeDailyRevenue(bookings);
   const totalRevenue = entries.reduce((s, e) => s + e.totalRevenue, 0);
   const totalBookings = entries.reduce((s, e) => s + e.totalBookings, 0);
+  const [activeRevTab, setActiveRevTab] = useState<"overall" | "per-turf">(
+    "overall",
+  );
 
   return (
     <div>
       <h2 className="font-display font-bold text-xl mb-4 flex items-center gap-2">
         <TrendingUp size={20} className="text-green-600" />
-        Daily Revenue Report
+        Revenue Report
       </h2>
       {/* Summary cards */}
       <div className="grid grid-cols-2 gap-4 mb-6">
@@ -277,46 +284,152 @@ function AdminRevenuePanel({
           </p>
         </div>
       </div>
-      {entries.length === 0 ? (
-        <p
-          className="text-center text-muted-foreground py-10"
-          data-ocid="admin.revenue.empty_state"
-        >
-          No booking revenue data yet.
-        </p>
-      ) : (
-        <div
-          className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
-          data-ocid="admin.revenue.table"
-        >
-          <table className="w-full text-sm">
-            <thead className="bg-muted/40">
-              <tr>
-                <th className="text-left px-4 py-3 font-semibold">Date</th>
-                <th className="text-right px-4 py-3 font-semibold">
-                  Total Bookings
-                </th>
-                <th className="text-right px-4 py-3 font-semibold">
-                  Total Revenue
-                </th>
-              </tr>
-            </thead>
-            <tbody>
-              {entries.map((e, i) => (
-                <tr
-                  key={e.date}
-                  className={i % 2 === 0 ? "bg-white" : "bg-muted/20"}
-                  data-ocid={`admin.revenue.row.${i + 1}`}
-                >
-                  <td className="px-4 py-3 font-medium">{e.date}</td>
-                  <td className="px-4 py-3 text-right">{e.totalBookings}</td>
-                  <td className="px-4 py-3 text-right font-semibold text-green-700">
-                    ₹{e.totalRevenue.toLocaleString()}
-                  </td>
+
+      {/* Sub-tabs: Overall vs Per Turf */}
+      <div className="flex gap-2 mb-5">
+        {(["overall", "per-turf"] as const).map((t) => (
+          <button
+            key={t}
+            type="button"
+            onClick={() => setActiveRevTab(t)}
+            className={`px-4 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
+              activeRevTab === t
+                ? "bg-green-600 text-white shadow"
+                : "bg-muted text-muted-foreground hover:bg-green-100"
+            }`}
+          >
+            {t === "overall" ? "Overall Daily Revenue" : "Per Turf Revenue"}
+          </button>
+        ))}
+      </div>
+
+      {activeRevTab === "overall" &&
+        (entries.length === 0 ? (
+          <p
+            className="text-center text-muted-foreground py-10"
+            data-ocid="admin.revenue.empty_state"
+          >
+            No booking revenue data yet.
+          </p>
+        ) : (
+          <div
+            className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
+            data-ocid="admin.revenue.table"
+          >
+            <table className="w-full text-sm">
+              <thead className="bg-muted/40">
+                <tr>
+                  <th className="text-left px-4 py-3 font-semibold">Date</th>
+                  <th className="text-right px-4 py-3 font-semibold">
+                    Total Bookings
+                  </th>
+                  <th className="text-right px-4 py-3 font-semibold">
+                    Total Revenue
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {entries.map((e, i) => (
+                  <tr
+                    key={e.date}
+                    className={i % 2 === 0 ? "bg-white" : "bg-muted/20"}
+                    data-ocid={`admin.revenue.row.${i + 1}`}
+                  >
+                    <td className="px-4 py-3 font-medium">{e.date}</td>
+                    <td className="px-4 py-3 text-right">{e.totalBookings}</td>
+                    <td className="px-4 py-3 text-right font-semibold text-green-700">
+                      ₹{e.totalRevenue.toLocaleString()}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ))}
+
+      {activeRevTab === "per-turf" && (
+        <div className="space-y-6">
+          {turfs.length === 0 ? (
+            <p className="text-center text-muted-foreground py-10">
+              No turfs found.
+            </p>
+          ) : (
+            turfs.map((turf, ti) => {
+              const tEntries = computeDailyRevenue(bookings, turf.id);
+              const tRevenue = tEntries.reduce((s, e) => s + e.totalRevenue, 0);
+              const tBookings = tEntries.reduce(
+                (s, e) => s + e.totalBookings,
+                0,
+              );
+              return (
+                <div
+                  key={turf.id}
+                  className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden"
+                  data-ocid={`admin.turf_revenue.item.${ti + 1}`}
+                >
+                  <div className="flex items-center justify-between px-5 py-4 bg-gradient-to-r from-green-700 to-green-600">
+                    <div>
+                      <p className="font-bold text-white text-base">
+                        {turf.name}
+                      </p>
+                      <p className="text-green-200 text-xs">{turf.location}</p>
+                    </div>
+                    <div className="flex gap-4 text-right">
+                      <div>
+                        <p className="text-green-200 text-xs">Bookings</p>
+                        <p className="text-white font-bold text-lg">
+                          {tBookings}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-green-200 text-xs">Revenue</p>
+                        <p className="text-white font-bold text-lg">
+                          ₹{tRevenue.toLocaleString()}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                  {tEntries.length === 0 ? (
+                    <p className="text-center text-muted-foreground py-6 text-sm">
+                      No bookings yet for this turf.
+                    </p>
+                  ) : (
+                    <table className="w-full text-sm">
+                      <thead className="bg-muted/40">
+                        <tr>
+                          <th className="text-left px-4 py-2 font-semibold text-xs">
+                            Date
+                          </th>
+                          <th className="text-right px-4 py-2 font-semibold text-xs">
+                            Bookings
+                          </th>
+                          <th className="text-right px-4 py-2 font-semibold text-xs">
+                            Revenue
+                          </th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {tEntries.map((e, i) => (
+                          <tr
+                            key={e.date}
+                            className={i % 2 === 0 ? "bg-white" : "bg-muted/20"}
+                          >
+                            <td className="px-4 py-2 font-medium">{e.date}</td>
+                            <td className="px-4 py-2 text-right">
+                              {e.totalBookings}
+                            </td>
+                            <td className="px-4 py-2 text-right font-semibold text-green-700">
+                              ₹{e.totalRevenue.toLocaleString()}
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  )}
+                </div>
+              );
+            })
+          )}
         </div>
       )}
     </div>
@@ -368,6 +481,19 @@ function AdminTournamentsTab() {
 
   const handleSubmit = () => {
     if (!form.name || !form.turfId || !form.date || !form.registrationEndDate) {
+      return;
+    }
+    const now = new Date();
+    const tournamentDate = new Date(form.date);
+    if (tournamentDate <= now) {
+      alert("Tournament date has already passed. Please select a future date.");
+      return;
+    }
+    const regEndDate = new Date(form.registrationEndDate);
+    if (regEndDate <= now) {
+      alert(
+        "Registration end date has already passed. Please select a future date.",
+      );
       return;
     }
     createTournament({ ...form, createdBy: "admin" });
@@ -788,26 +914,80 @@ function TournamentListCard({
             {activeSection === "teams" && (
               <div>
                 {registrations.length === 0 ? (
-                  <p className="text-center py-6 text-gray-400 text-sm">
+                  <p
+                    className="text-center py-6 text-gray-400 text-sm"
+                    data-ocid="admin.tournaments.teams.empty_state"
+                  >
                     No teams registered yet.
                   </p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-3">
+                    <p className="text-xs text-gray-500 font-medium mb-2">
+                      {registrations.length} team
+                      {registrations.length !== 1 ? "s" : ""} registered
+                    </p>
                     {registrations.map((r, i) => (
                       <div
                         key={r.id}
-                        className="flex items-center justify-between bg-gray-50 rounded-lg px-3 py-2 text-sm"
+                        className="bg-gradient-to-r from-green-50 to-white border border-green-100 rounded-xl p-4 text-sm"
+                        data-ocid={`admin.tournaments.teams.item.${i + 1}`}
                       >
-                        <div>
-                          <span className="font-semibold text-gray-800">
-                            #{i + 1} {r.teamName}
-                          </span>
-                          <span className="ml-3 text-gray-500">
-                            Captain: {r.captainName}
+                        <div className="flex items-center justify-between mb-3">
+                          <div className="flex items-center gap-2">
+                            <span className="w-7 h-7 flex items-center justify-center rounded-full bg-green-600 text-white text-xs font-bold shrink-0">
+                              {i + 1}
+                            </span>
+                            <span className="font-bold text-gray-800 text-base">
+                              {r.teamName}
+                            </span>
+                          </div>
+                          <span
+                            className={`text-xs px-2 py-0.5 rounded-full font-medium ${r.paymentStatus === "paid" ? "bg-green-100 text-green-700" : "bg-amber-100 text-amber-700"}`}
+                          >
+                            {r.paymentStatus === "paid" ? "Paid" : "Pending"}
                           </span>
                         </div>
-                        <div className="text-gray-500 text-xs">
-                          {r.numberOfPlayers} players · {r.contact1}
+                        <div className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm">
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Captain
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.captainName}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Players
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.numberOfPlayers}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Contact 1
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.contact1 || "—"}
+                            </p>
+                          </div>
+                          <div>
+                            <span className="text-gray-400 text-xs">
+                              Contact 2
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {r.contact2 || "—"}
+                            </p>
+                          </div>
+                          <div className="col-span-2">
+                            <span className="text-gray-400 text-xs">
+                              Registered At
+                            </span>
+                            <p className="font-medium text-gray-800">
+                              {new Date(r.registeredAt).toLocaleString("en-IN")}
+                            </p>
+                          </div>
                         </div>
                       </div>
                     ))}
@@ -880,58 +1060,144 @@ function TournamentListCard({
 }
 
 function AdminTournamentRegsTab() {
-  const { tournamentRegistrations } = useApp();
+  const { tournamentRegistrations, tournaments } = useApp();
+
+  // Group registrations by tournament
+  const grouped = tournaments.reduce<
+    Record<
+      string,
+      { tournamentName: string; regs: typeof tournamentRegistrations }
+    >
+  >((acc, t) => {
+    const regs = tournamentRegistrations.filter((r) => r.tournamentId === t.id);
+    if (regs.length > 0) {
+      acc[t.id] = { tournamentName: t.name, regs };
+    }
+    return acc;
+  }, {});
+  const groupKeys = Object.keys(grouped);
+
+  // Also catch registrations not matched to a tournament (fallback)
+  const unmatchedRegs = tournamentRegistrations.filter(
+    (r) => !tournaments.find((t) => t.id === r.tournamentId),
+  );
+  if (unmatchedRegs.length > 0) {
+    grouped.__other__ = { tournamentName: "Other", regs: unmatchedRegs };
+    groupKeys.push("__other__");
+  }
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <h2 className="font-display font-bold text-xl flex items-center gap-2">
         <ClipboardCheck size={20} className="text-green-600" /> Tournament
         Registrations
       </h2>
       {tournamentRegistrations.length === 0 ? (
         <div
-          className="text-center py-12 text-gray-400"
+          className="text-center py-12 text-gray-400 bg-white rounded-xl border border-gray-200"
           data-ocid="admin.tournament-registrations.empty_state"
         >
           No team registrations yet.
         </div>
       ) : (
         <div
-          className="overflow-x-auto rounded-xl border border-border"
+          className="space-y-6"
           data-ocid="admin.tournament-registrations.table"
         >
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Tournament</TableHead>
-                <TableHead>Team Name</TableHead>
-                <TableHead>Captain</TableHead>
-                <TableHead>Contact 1</TableHead>
-                <TableHead>Contact 2</TableHead>
-                <TableHead>Players</TableHead>
-                <TableHead>Payment</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {tournamentRegistrations.map((r, idx) => (
-                <TableRow
-                  key={r.id}
-                  data-ocid={`admin.tournament-registrations.row.${idx + 1}`}
-                >
-                  <TableCell className="font-medium">
-                    {r.tournamentName}
-                  </TableCell>
-                  <TableCell>{r.teamName}</TableCell>
-                  <TableCell>{r.captainName}</TableCell>
-                  <TableCell>{r.contact1}</TableCell>
-                  <TableCell>{r.contact2 || "—"}</TableCell>
-                  <TableCell>{r.numberOfPlayers}</TableCell>
-                  <TableCell>
-                    <Badge className="bg-green-100 text-green-700">Paid</Badge>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+          {groupKeys.map((tId, gIdx) => {
+            const { tournamentName, regs } = grouped[tId];
+            const tournament = tournaments.find((t) => t.id === tId);
+            return (
+              <div
+                key={tId}
+                className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden"
+                data-ocid={`admin.tournament-registrations.panel.${gIdx + 1}`}
+              >
+                {/* Tournament Header */}
+                <div className="bg-gradient-to-r from-green-600 to-green-700 px-6 py-4 flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <TrophyIcon size={20} className="text-white" />
+                    <div>
+                      <h3 className="text-white font-bold text-lg">
+                        {tournamentName}
+                      </h3>
+                      {tournament && (
+                        <p className="text-green-100 text-sm">
+                          {tournament.location} &bull; {tournament.date}
+                        </p>
+                      )}
+                    </div>
+                  </div>
+                  <span className="bg-white/20 text-white text-sm font-semibold px-3 py-1 rounded-full">
+                    {regs.length} / {tournament?.maxTeams ?? "?"} Teams
+                  </span>
+                </div>
+                {/* Registrations Table */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-gray-50 border-b border-gray-200">
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          #
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Team Name
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Captain
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Contact 1
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Contact 2
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Players
+                        </th>
+                        <th className="px-4 py-3 text-left font-semibold text-gray-600">
+                          Payment
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100 bg-white">
+                      {regs.map((r, idx) => (
+                        <tr
+                          key={r.id}
+                          className="hover:bg-green-50 transition-colors"
+                          data-ocid={`admin.tournament-registrations.row.${idx + 1}`}
+                        >
+                          <td className="px-4 py-3 text-gray-400 font-medium">
+                            {idx + 1}
+                          </td>
+                          <td className="px-4 py-3 font-semibold text-gray-800">
+                            {r.teamName}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.captainName}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.contact1}
+                          </td>
+                          <td className="px-4 py-3 text-gray-500">
+                            {r.contact2 || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-gray-700">
+                            {r.numberOfPlayers}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-semibold">
+                              ✓ Paid
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>
@@ -1114,6 +1380,7 @@ export default function AdminDashboard() {
     turfs,
     users,
     bookings,
+    tournaments,
     addTurf,
     editTurf,
     deleteTurf,
@@ -1144,12 +1411,15 @@ export default function AdminDashboard() {
     null,
   );
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState("overview");
+  const [clickedSideBtn, setClickedSideBtn] = useState<string | null>(null);
 
   const totalRevenue = bookings.reduce(
-    (s, b) => s + (b.paymentType === "full" ? b.totalPrice : b.advanceAmount),
+    (s, b) =>
+      s + (b.paymentStatus === "fullyPaid" ? b.totalPrice : b.advanceAmount),
     0,
   );
-  const totalUsers = users.filter((u) => u.role === "user").length;
+  const _totalUsers = users.filter((u) => u.role === "user").length;
 
   const openAddTurf = () => {
     setEditingId(null);
@@ -1227,15 +1497,49 @@ export default function AdminDashboard() {
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#050c06]">
       <Navbar />
-      <div className="flex pt-16 min-h-screen">
+      <div
+        className="relative text-white px-6 py-8 mt-16 flex items-center gap-4 shadow-lg overflow-hidden"
+        style={{
+          backgroundImage:
+            "url(/assets/generated/dashboard-bg.dim_1920x1080.jpg)",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        <div
+          className="absolute inset-0 bg-[#061209]/80"
+          style={{
+            backgroundImage:
+              "url(/assets/generated/turf-hero-bg.dim_1920x1080.jpg)",
+            backgroundSize: "cover",
+          }}
+        />
+        <img
+          src="/assets/generated/turfmate-icon-transparent.dim_200x200.png"
+          alt=""
+          className="w-10 h-10 object-contain relative z-10"
+        />
+        <div className="relative z-10">
+          <h1 className="font-display font-bold text-2xl">Admin Dashboard</h1>
+          <p className="text-green-300 text-sm">TurfMate Platform Management</p>
+        </div>
+      </div>
+      <div className="flex min-h-[calc(100vh-10rem)]">
         {/* Sidebar */}
-        <aside className="hidden md:flex flex-col w-56 bg-sidebar text-sidebar-foreground p-4 gap-1">
+        <aside className="hidden md:flex flex-col w-56 bg-[#0a1a0c] border-r border-green-900/30 text-sidebar-foreground p-4 gap-1">
           <div className="px-2 py-3 mb-2">
-            <p className="font-display font-bold text-lg text-white">
-              Admin Panel
-            </p>
+            <div className="flex items-center gap-2 mb-1">
+              <img
+                src="/assets/generated/turfmate-icon-transparent.dim_200x200.png"
+                alt=""
+                className="w-7 h-7 object-contain"
+              />
+              <p className="font-display font-bold text-lg text-white">
+                Admin Panel
+              </p>
+            </div>
             <p className="text-xs text-green-300">Platform Owner</p>
           </div>
           {[
@@ -1247,8 +1551,23 @@ export default function AdminDashboard() {
             <button
               type="button"
               key={tab}
-              className="flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium text-sidebar-foreground hover:bg-sidebar-accent transition-colors"
+              onClick={() => {
+                setActiveTab(tab);
+                setClickedSideBtn(tab);
+                setTimeout(() => setClickedSideBtn(null), 400);
+              }}
+              className={`relative flex items-center gap-2.5 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 overflow-hidden
+                ${
+                  activeTab === tab
+                    ? "bg-green-600 text-white shadow-lg shadow-green-900/40"
+                    : "text-sidebar-foreground hover:bg-sidebar-accent"
+                }
+                ${clickedSideBtn === tab ? "scale-95" : ""}
+              `}
             >
+              {clickedSideBtn === tab && (
+                <span className="absolute inset-0 rounded-xl animate-ping bg-green-400/40 pointer-events-none" />
+              )}
               <Icon size={16} />
               {label}
             </button>
@@ -1257,7 +1576,7 @@ export default function AdminDashboard() {
 
         {/* Main */}
         <main className="flex-1 p-4 sm:p-6 overflow-auto">
-          <Tabs defaultValue="overview">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
             <TabsList className="mb-6 flex-wrap h-auto">
               <TabsTrigger value="overview" data-ocid="admin.tab">
                 Overview
@@ -1300,33 +1619,39 @@ export default function AdminDashboard() {
                   {
                     label: "Total Turfs",
                     value: turfs.length,
-                    color: "bg-green-50 border-green-200",
+                    bg: "bg-green-600",
+                    icon: "⚽",
+                  },
+                  {
+                    label: "Total Tournaments",
+                    value: tournaments.length,
+                    bg: "bg-purple-600",
+                    icon: "🏆",
                   },
                   {
                     label: "Total Bookings",
                     value: bookings.length,
-                    color: "bg-blue-50 border-blue-200",
+                    bg: "bg-blue-600",
+                    icon: "📅",
                   },
                   {
-                    label: "Total Users",
-                    value: totalUsers,
-                    color: "bg-purple-50 border-purple-200",
+                    label: "Total Revenue",
+                    value: `₹${totalRevenue.toLocaleString()}`,
+                    bg: "bg-amber-500",
+                    icon: "💰",
                   },
-                  {
-                    label: "Revenue",
-                    value: `₹${totalRevenue}`,
-                    color: "bg-amber-50 border-amber-200",
-                  },
-                ].map(({ label, value, color }, i) => (
+                ].map(({ label, value, bg, icon }, i) => (
                   <motion.div
                     key={label}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.08 }}
-                    className={`${color} border rounded-2xl p-5`}
+                    className={`${bg} rounded-2xl p-5 shadow-lg`}
                   >
-                    <p className="text-sm text-muted-foreground">{label}</p>
-                    <p className="font-display font-bold text-3xl mt-1">
+                    <p className="text-white/80 text-sm font-medium flex items-center gap-1">
+                      {icon} {label}
+                    </p>
+                    <p className="text-white font-bold text-3xl mt-1">
                       {value}
                     </p>
                   </motion.div>
@@ -1613,7 +1938,7 @@ export default function AdminDashboard() {
 
             {/* Daily Revenue */}
             <TabsContent value="revenue">
-              <AdminRevenuePanel bookings={bookings} />
+              <AdminRevenuePanel bookings={bookings} turfs={turfs} />
             </TabsContent>
 
             {/* Owner Settings */}

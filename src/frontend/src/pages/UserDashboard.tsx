@@ -149,7 +149,6 @@ export default function UserDashboard() {
     return { label: "Remaining Pending", cls: "bg-orange-500" };
   };
 
-  // Parse slot start time label like "6:00 PM" or "6PM" into minutes from midnight
   const parseSlotStartMinutes = (label: string): number | null => {
     const startLabel = label.split("-")[0]?.trim();
     const match = startLabel?.match(/(\d+)(?::(\d+))?\s*(AM|PM)/i);
@@ -161,7 +160,6 @@ export default function UserDashboard() {
     return h * 60 + m;
   };
 
-  // Returns true if cancellation is allowed: current time < slot start time - 1 hour
   const isCancelAllowed = (b: (typeof myBookings)[0]): boolean => {
     const now = new Date();
     const bookingDate = new Date(b.date);
@@ -171,13 +169,8 @@ export default function UserDashboard() {
       bookingDate.getMonth(),
       bookingDate.getDate(),
     );
-
-    // Future date: always cancellable
     if (bDate > nowDate) return true;
-    // Past date: not cancellable
     if (bDate < nowDate) return false;
-
-    // Same day: check if current time < slot start - 1 hour
     const firstSlot = b.slotLabels[0];
     if (!firstSlot) return false;
     const slotStartMinutes = parseSlotStartMinutes(firstSlot);
@@ -186,7 +179,6 @@ export default function UserDashboard() {
     return nowMinutes < slotStartMinutes - 60;
   };
 
-  // Returns true if slot has ended (for Pay Remaining logic)
   const isSlotPast = (date: string, slotLabels: string[]) => {
     const now = new Date();
     const bookingDate = new Date(date);
@@ -196,7 +188,6 @@ export default function UserDashboard() {
       bookingDate.getMonth(),
       bookingDate.getDate(),
     );
-
     if (bDate < nowDate) return true;
     if (bDate.getTime() === nowDate.getTime()) {
       const lastSlot = slotLabels[slotLabels.length - 1];
@@ -217,7 +208,6 @@ export default function UserDashboard() {
     return false;
   };
 
-  // Show Cancel button only if active AND cancellation is still allowed (>1 hour before slot)
   const canShowCancel = (b: (typeof myBookings)[0]) =>
     b.status !== "cancelled" && b.status !== "rejected" && isCancelAllowed(b);
 
@@ -237,46 +227,76 @@ export default function UserDashboard() {
     : null;
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-[#060e07]">
       <Navbar />
-      <main className="pt-20 pb-12">
-        <div className="max-w-4xl mx-auto px-4">
+
+      {/* Dashboard hero header */}
+      <div
+        className="relative mt-16"
+        style={{
+          backgroundImage:
+            "url('/assets/generated/dashboard-bg.dim_1920x1080.jpg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center top",
+        }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-[#061209]/90 to-[#0a1f0c]/85" />
+        <div className="relative z-10 max-w-4xl mx-auto px-4 py-10">
           <motion.div
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="mb-8"
           >
-            <h1 className="font-display font-bold text-3xl">My Dashboard</h1>
-            <p className="text-muted-foreground mt-1">
+            <div className="flex items-center gap-3 mb-1">
+              <img
+                src="/assets/generated/turfmate-icon-transparent.dim_200x200.png"
+                alt=""
+                className="w-10 h-10 object-contain"
+              />
+              <h1 className="font-display font-bold text-3xl text-white">
+                My Dashboard
+              </h1>
+            </div>
+            <p className="text-green-300/70 mt-1 ml-1">
               Welcome back, {currentUser?.fullName}
             </p>
           </motion.div>
+        </div>
+      </div>
 
-          <div className="mb-6 flex items-center gap-2">
-            <History size={20} className="text-green-600" />
-            <h2 className="font-display font-bold text-xl">My Bookings</h2>
-            <Badge variant="secondary" className="ml-1">
+      <main className="pb-12">
+        <div className="max-w-4xl mx-auto px-4 py-8">
+          <div className="mb-6 flex items-center gap-3">
+            <div className="section-header-line">
+              <h2 className="font-display font-bold text-xl text-white flex items-center gap-2">
+                <History size={20} className="text-green-400" />
+                My Bookings
+              </h2>
+            </div>
+            <span className="bg-green-900/40 border border-green-700/40 text-green-300 text-xs font-semibold px-3 py-1 rounded-full">
               {myBookings.length} booking{myBookings.length !== 1 ? "s" : ""}
-            </Badge>
+            </span>
           </div>
 
           {myBookings.length === 0 ? (
             <div
-              className="text-center py-20 text-muted-foreground"
+              className="glass-dark rounded-2xl text-center py-20 border border-green-900/30"
               data-ocid="dashboard.empty_state"
             >
-              <Calendar size={48} className="mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium">No bookings yet</p>
-              <p className="text-sm mt-1">
+              <Calendar size={48} className="mx-auto mb-4 text-green-400/30" />
+              <p className="text-lg font-medium text-white/60">
+                No bookings yet
+              </p>
+              <p className="text-sm mt-1 text-white/40">
                 Start exploring turfs to make your first booking.
               </p>
-              <Button
-                className="mt-4 bg-green-600 hover:bg-green-500 text-white"
+              <button
+                type="button"
+                className="btn-premium mt-6 px-8 py-3"
                 onClick={() => navigate("/explore")}
                 data-ocid="dashboard.primary_button"
               >
                 Explore Turfs
-              </Button>
+              </button>
             </div>
           ) : (
             <div className="space-y-4">
@@ -292,17 +312,17 @@ export default function UserDashboard() {
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
-                    className={`bg-white rounded-2xl p-5 border shadow-sm ${
+                    className={`rounded-2xl p-5 border transition-all duration-200 hover:shadow-neon-green ${
                       isCancelled
-                        ? "border-red-200 opacity-70"
-                        : "border-border"
+                        ? "bg-red-950/20 border-red-900/30 border-l-4 border-l-red-500 opacity-70"
+                        : "bg-[#0a1a0c] border-green-900/30 hover:border-green-400/30 border-l-4 border-l-green-500"
                     }`}
                     data-ocid={`dashboard.item.${i + 1}`}
                   >
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <h3 className="font-display font-bold text-lg">
+                          <h3 className="font-display font-bold text-lg text-white">
                             {b.turfName}
                           </h3>
                           <Badge className={`${st.cls} text-white text-xs`}>
@@ -324,78 +344,75 @@ export default function UserDashboard() {
                             </Badge>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <Calendar size={13} />
+                        <p className="text-sm text-white/50 flex items-center gap-1.5">
+                          <Calendar size={13} className="text-green-400/60" />
                           {b.date}
                         </p>
-                        <p className="text-sm text-muted-foreground flex items-center gap-1.5">
-                          <Clock size={13} />
+                        <p className="text-sm text-white/50 flex items-center gap-1.5">
+                          <Clock size={13} className="text-green-400/60" />
                           {b.slotLabels.join(", ")}
                         </p>
-                        <p className="text-sm font-semibold text-green-700 flex items-center gap-1.5">
+                        <p className="text-sm font-semibold text-green-400 flex items-center gap-1.5">
                           <CreditCard size={13} />
                           Total: &#8377;{b.totalPrice}
                         </p>
                         {b.paymentStatus !== "fullyPaid" &&
                           b.remainingAmount > 0 &&
                           !isCancelled && (
-                            <p className="text-xs text-orange-600">
+                            <p className="text-xs text-amber-400/80">
                               Remaining balance: &#8377;{b.remainingAmount}
                             </p>
                           )}
                         {isCancelled && b.paymentType === "advance" && (
-                          <p className="text-xs text-red-500 flex items-center gap-1">
+                          <p className="text-xs text-red-400/80 flex items-center gap-1">
                             <AlertTriangle size={11} />
                             Advance of &#8377;{b.advanceAmount} was
                             non-refundable
                           </p>
                         )}
-                        {/* Show quiet note when cancellation window has closed */}
                         {isActive && !cancelAllowed && (
-                          <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <p className="text-xs text-white/30 flex items-center gap-1">
                             <Clock size={11} />
                             Cancellation closed (less than 1 hour before slot)
                           </p>
                         )}
                       </div>
                       <div className="flex flex-col gap-2 items-end">
-                        <p className="text-xs text-muted-foreground font-mono">
+                        <p className="text-xs text-white/30 font-mono">
                           #{b.id}
                         </p>
                         {!isCancelled && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-green-600 text-green-700 hover:bg-green-50 text-xs flex items-center gap-1"
+                          <button
+                            type="button"
+                            className="bg-green-900/20 border border-green-500/30 hover:bg-green-900/40 text-green-400 rounded-xl text-xs font-semibold px-3 py-1.5 transition-all flex items-center gap-1"
                             onClick={() => navigate(`/book/${b.turfId}`)}
                             data-ocid={`dashboard.secondary_button.${i + 1}`}
                           >
                             <RefreshCw size={12} />
                             Book Again
-                          </Button>
+                          </button>
                         )}
                         {canShowCancel(b) && (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            className="border-red-400 text-red-600 hover:bg-red-50 text-xs flex items-center gap-1"
+                          <button
+                            type="button"
+                            className="bg-red-900/20 border border-red-500/30 hover:bg-red-900/40 text-red-400 rounded-xl text-xs font-semibold px-3 py-1.5 transition-all flex items-center gap-1"
                             onClick={() => setCancelTarget(b.id)}
                             data-ocid={`dashboard.delete_button.${i + 1}`}
                           >
                             <XCircle size={12} />
                             Cancel Booking
-                          </Button>
+                          </button>
                         )}
                         {canPayRemaining(b) && (
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-500 text-white text-xs flex items-center gap-1"
+                          <button
+                            type="button"
+                            className="btn-premium text-xs px-3 py-1.5 rounded-xl flex items-center gap-1"
                             onClick={() => setPayRemainingTarget(b.id)}
                             data-ocid={`dashboard.primary_button.${i + 1}`}
                           >
                             <CreditCard size={12} />
                             Pay Remaining Amount
-                          </Button>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -510,7 +527,7 @@ export default function UserDashboard() {
         </DialogContent>
       </Dialog>
 
-      <footer className="bg-[oklch(0.15_0.05_145)] text-gray-400 py-6 text-center text-sm">
+      <footer className="bg-[#030806] text-gray-400 py-6 text-center text-sm border-t border-green-900/20">
         <p>
           &copy; {new Date().getFullYear()}. Built with &#10084;&#65039; using{" "}
           <a

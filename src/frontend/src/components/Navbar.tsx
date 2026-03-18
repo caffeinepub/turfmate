@@ -6,9 +6,9 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import { LayoutDashboard, LogOut, Menu, Trophy, User, X } from "lucide-react";
+import { LayoutDashboard, LogOut, Menu, User, X } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useApp } from "../context/AppContext";
 
@@ -21,6 +21,13 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [authModal, setAuthModal] = useState(false);
+  const [scrolled, setScrolled] = useState(false);
+
+  useEffect(() => {
+    const handler = () => setScrolled(window.scrollY > 10);
+    window.addEventListener("scroll", handler);
+    return () => window.removeEventListener("scroll", handler);
+  }, []);
 
   const handleExploreTurfs = () => {
     if (!currentUser) {
@@ -47,8 +54,10 @@ export default function Navbar({ transparent = false }: NavbarProps) {
   const dashLink = getDashboardLink();
 
   const navBg = transparent
-    ? "bg-transparent"
-    : "bg-[oklch(0.22_0.06_145)] shadow-lg";
+    ? scrolled
+      ? "bg-black/90 backdrop-blur-xl border-b border-green-900/40 shadow-glass"
+      : "bg-transparent"
+    : "bg-black/90 backdrop-blur-xl border-b border-green-900/40 shadow-glass";
 
   return (
     <>
@@ -60,103 +69,92 @@ export default function Navbar({ transparent = false }: NavbarProps) {
             {/* Logo */}
             <Link
               to="/"
-              className="flex items-center gap-2 group"
+              className="flex items-center group"
               data-ocid="nav.link"
             >
-              <motion.div
-                whileHover={{ rotate: 15 }}
-                className="text-green-400"
-              >
-                <Trophy size={28} strokeWidth={2.5} />
+              <motion.div whileHover={{ scale: 1.05 }}>
+                <img
+                  src="/assets/generated/turfmate-logo-premium-transparent.dim_400x120.png"
+                  alt="TurfMate"
+                  className="h-8 w-auto object-contain"
+                />
               </motion.div>
-              <span className="font-display font-bold text-xl text-white tracking-tight">
-                Turf<span className="text-green-400">Mate</span>
-              </span>
             </Link>
 
             {/* Desktop nav */}
             <div className="hidden md:flex items-center gap-3">
               {currentUser ? (
                 <>
-                  <span className="text-green-200 text-sm font-medium">
-                    <User size={14} className="inline mr-1" />
+                  <span className="text-green-300/80 text-sm font-medium flex items-center gap-1.5">
+                    <User size={14} />
                     {currentUser.fullName}
                   </span>
                   {dashLink && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      asChild
-                      className="text-white hover:bg-green-700/50"
+                    <Link
+                      to={dashLink.to}
+                      className="relative group text-white/80 hover:text-green-400 transition-colors text-sm font-medium px-3 py-2"
+                      data-ocid="nav.link"
                     >
-                      <Link to={dashLink.to} data-ocid="nav.link">
-                        <LayoutDashboard size={14} className="mr-1" />
-                        {dashLink.label}
-                      </Link>
-                    </Button>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="text-white hover:bg-green-700/50"
-                  >
-                    <Link to="/tournaments" data-ocid="nav.link">
-                      Tournaments
+                      <LayoutDashboard size={14} className="inline mr-1" />
+                      {dashLink.label}
+                      <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
                     </Link>
-                  </Button>
+                  )}
+                  <Link
+                    to="/tournaments"
+                    className="relative group text-white/80 hover:text-green-400 transition-colors text-sm font-medium px-3 py-2"
+                    data-ocid="nav.link"
+                  >
+                    Tournaments
+                    <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
+                  </Link>
                   {currentUser.role === "user" && (
-                    <Button
-                      variant="ghost"
-                      size="sm"
+                    <button
+                      type="button"
                       onClick={handleExploreTurfs}
-                      className="text-white hover:bg-green-700/50"
+                      className="relative group text-white/80 hover:text-green-400 transition-colors text-sm font-medium px-3 py-2"
                       data-ocid="nav.link"
                     >
                       Explore Turfs
-                    </Button>
+                      <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
+                    </button>
                   )}
-                  <Button
-                    size="sm"
-                    variant="outline"
+                  <button
+                    type="button"
                     onClick={handleLogout}
-                    className="border-green-400 text-green-400 hover:bg-green-400 hover:text-white"
+                    className="flex items-center gap-1.5 border border-green-500/50 text-green-400 hover:bg-green-500/10 transition-all text-sm font-medium px-4 py-2 rounded-xl"
                     data-ocid="nav.button"
                   >
-                    <LogOut size={14} className="mr-1" />
+                    <LogOut size={14} />
                     Logout
-                  </Button>
+                  </button>
                 </>
               ) : (
                 <>
-                  <Button
-                    variant="ghost"
-                    size="sm"
+                  <button
+                    type="button"
                     onClick={handleExploreTurfs}
-                    className="text-white hover:bg-green-700/50"
+                    className="relative group text-white/80 hover:text-green-400 transition-colors text-sm font-medium px-3 py-2"
                     data-ocid="nav.link"
                   >
                     Explore Turfs
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    asChild
-                    className="text-white hover:bg-green-700/50"
+                    <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
+                  </button>
+                  <Link
+                    to="/login"
+                    className="relative group text-white/80 hover:text-green-400 transition-colors text-sm font-medium px-3 py-2"
+                    data-ocid="nav.link"
                   >
-                    <Link to="/login" data-ocid="nav.link">
-                      Login
-                    </Link>
-                  </Button>
-                  <Button
-                    size="sm"
-                    asChild
-                    className="bg-green-500 hover:bg-green-400 text-white"
+                    Login
+                    <span className="absolute -bottom-0.5 left-0 w-0 h-0.5 bg-green-400 group-hover:w-full transition-all duration-300" />
+                  </Link>
+                  <Link
+                    to="/signup"
+                    className="bg-green-600 hover:bg-green-500 text-white font-semibold text-sm px-5 py-2 rounded-xl shadow-premium transition-all hover:shadow-neon-green"
+                    data-ocid="nav.link"
                   >
-                    <Link to="/signup" data-ocid="nav.link">
-                      Sign Up
-                    </Link>
-                  </Button>
+                    Sign Up
+                  </Link>
                 </>
               )}
             </div>
@@ -177,7 +175,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
-            className="md:hidden bg-[oklch(0.18_0.06_145)] border-t border-green-800 px-4 py-4 flex flex-col gap-3"
+            className="md:hidden bg-black/95 backdrop-blur-xl border-t border-green-900/30 px-4 py-4 flex flex-col gap-3"
           >
             {currentUser ? (
               <>
@@ -187,7 +185,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                 {dashLink && (
                   <Link
                     to={dashLink.to}
-                    className="text-white hover:text-green-400 py-1"
+                    className="text-white/80 hover:text-green-400 py-1 transition-colors"
                     onClick={() => setMobileOpen(false)}
                     data-ocid="nav.link"
                   >
@@ -196,7 +194,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                 )}
                 <Link
                   to="/tournaments"
-                  className="text-white hover:text-green-400 py-1"
+                  className="text-white/80 hover:text-green-400 py-1 transition-colors"
                   onClick={() => setMobileOpen(false)}
                   data-ocid="nav.link"
                 >
@@ -209,7 +207,7 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                       setMobileOpen(false);
                       handleExploreTurfs();
                     }}
-                    className="text-white text-left hover:text-green-400 py-1"
+                    className="text-white/80 text-left hover:text-green-400 py-1 transition-colors"
                     data-ocid="nav.link"
                   >
                     Explore Turfs
@@ -235,14 +233,14 @@ export default function Navbar({ transparent = false }: NavbarProps) {
                     setMobileOpen(false);
                     handleExploreTurfs();
                   }}
-                  className="text-white text-left py-1"
+                  className="text-white/80 text-left py-1 hover:text-green-400 transition-colors"
                   data-ocid="nav.link"
                 >
                   Explore Turfs
                 </button>
                 <Link
                   to="/login"
-                  className="text-white hover:text-green-400 py-1"
+                  className="text-white/80 hover:text-green-400 py-1 transition-colors"
                   onClick={() => setMobileOpen(false)}
                   data-ocid="nav.link"
                 >

@@ -79,6 +79,9 @@ export default {
       boxShadow: {
         xs: "0 1px 2px 0 rgba(0,0,0,0.05)",
         turf: "0 4px 24px 0 oklch(0.4 0.15 145 / 0.15)",
+        "neon-green": "0 0 20px rgba(74,222,128,0.5), 0 0 40px rgba(74,222,128,0.2)",
+        glass: "0 8px 32px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.1)",
+        premium: "0 4px 24px rgba(22,163,74,0.4), 0 8px 48px rgba(0,0,0,0.3)",
       },
       keyframes: {
         "accordion-down": {
@@ -97,12 +100,22 @@ export default {
           "0%": { transform: "scale(0.9)", opacity: "0" },
           "100%": { transform: "scale(1)", opacity: "1" },
         },
+        "pulse-glow": {
+          "0%, 100%": { boxShadow: "0 0 20px rgba(74,222,128,0.4)" },
+          "50%": { boxShadow: "0 0 40px rgba(74,222,128,0.8), 0 0 60px rgba(74,222,128,0.3)" },
+        },
+        float: {
+          "0%, 100%": { transform: "translateY(0px)" },
+          "50%": { transform: "translateY(-8px)" },
+        },
       },
       animation: {
         "accordion-down": "accordion-down 0.2s ease-out",
         "accordion-up": "accordion-up 0.2s ease-out",
         "fade-up": "fade-up 0.5s ease-out forwards",
         "slot-pop": "slot-pop 0.2s ease-out forwards",
+        "pulse-glow": "pulse-glow 2s ease-in-out infinite",
+        float: "float 3s ease-in-out infinite",
       },
     },
   },
