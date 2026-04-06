@@ -263,7 +263,7 @@ export default function UserDashboard() {
     b.remainingAmount > 0 &&
     b.status !== "cancelled" &&
     b.status !== "rejected" &&
-    isSlotPast(b.date, b.slotLabels);
+    !isSlotPast(b.date, b.slotLabels);
 
   const payRemainingBooking = payRemainingTarget
     ? (myBookings.find((b) => b.id === payRemainingTarget) ?? null)
@@ -513,7 +513,7 @@ export default function UserDashboard() {
                             Cancel Booking
                           </button>
                         )}
-                        {/* Pay Remaining button — only when slot has passed */}
+                        {/* Pay Remaining button — shown as soon as advance is paid, hidden after slot passes */}
                         {canPayRemaining(b) && (
                           <button
                             type="button"
