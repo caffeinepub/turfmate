@@ -18,16 +18,19 @@ import {
 } from "@/components/ui/dialog";
 import {
   AlertTriangle,
+  Bell,
   Calendar,
   CheckCircle,
   Clock,
   CreditCard,
   History,
+  Lock,
+  PlayCircle,
   RefreshCw,
   XCircle,
 } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Navbar from "../components/Navbar";
 import { useApp } from "../context/AppContext";
@@ -137,13 +140,20 @@ export default function UserDashboard() {
   const [payRemainingTarget, setPayRemainingTarget] = useState<string | null>(
     null,
   );
+  // For live time-based badge updates
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const interval = setInterval(() => setNow(new Date()), 30000); // refresh every 30s
+    return () => clearInterval(interval);
+  }, []);
 
   const myBookings = bookings
     .filter((b) => b.userId === currentUser?.id)
     .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
   const statusInfo = (s: string) => {
-    if (s === "fullyPaid") return { label: "Fully Paid", cls: "bg-green-600" };
+    if (s === "fullyPaid") return { label: "Done", cls: "bg-green-600" };
     if (s === "advancePaid")
       return { label: "Advance Paid", cls: "bg-amber-500" };
     return { label: "Remaining Pending", cls: "bg-orange-500" };
@@ -160,8 +170,29 @@ export default function UserDashboard() {
     return h * 60 + m;
   };
 
+  const parseSlotEndMinutes = (slotLabels: string[]): number | null => {
+    const lastSlot = slotLabels[slotLabels.length - 1];
+    if (!lastSlot) return null;
+    const endLabel = lastSlot.split("-")[1]?.trim();
+    const hourMatch = endLabel?.match(/(\d+)(?::(\d+))?(AM|PM)/i);
+    if (!hourMatch) return null;
+    let h = Number.parseInt(hourMatch[1]);
+    const m = hourMatch[2] ? Number.parseInt(hourMatch[2]) : 0;
+    if (hourMatch[3].toUpperCase() === "PM" && h !== 12) h += 12;
+    if (hourMatch[3].toUpperCase() === "AM" && h === 12) h = 0;
+    return h * 60 + m;
+  };
+
+  const isSameDay = (date: string) => {
+    const bookingDate = new Date(date);
+    return (
+      bookingDate.getFullYear() === now.getFullYear() &&
+      bookingDate.getMonth() === now.getMonth() &&
+      bookingDate.getDate() === now.getDate()
+    );
+  };
+
   const isCancelAllowed = (b: (typeof myBookings)[0]): boolean => {
-    const now = new Date();
     const bookingDate = new Date(b.date);
     const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const bDate = new Date(
@@ -179,8 +210,8 @@ export default function UserDashboard() {
     return nowMinutes < slotStartMinutes - 60;
   };
 
+  // Returns true if slot time has fully passed
   const isSlotPast = (date: string, slotLabels: string[]) => {
-    const now = new Date();
     const bookingDate = new Date(date);
     const nowDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
     const bDate = new Date(
@@ -190,22 +221,37 @@ export default function UserDashboard() {
     );
     if (bDate < nowDate) return true;
     if (bDate.getTime() === nowDate.getTime()) {
-      const lastSlot = slotLabels[slotLabels.length - 1];
-      if (lastSlot) {
-        const endLabel = lastSlot.split("-")[1]?.trim();
-        const hourMatch = endLabel?.match(/(\d+)(?::(\d+))?(AM|PM)/i);
-        if (hourMatch) {
-          let h = Number.parseInt(hourMatch[1]);
-          const m = hourMatch[2] ? Number.parseInt(hourMatch[2]) : 0;
-          if (hourMatch[3].toUpperCase() === "PM" && h !== 12) h += 12;
-          if (hourMatch[3].toUpperCase() === "AM" && h === 12) h = 0;
-          const slotMinutes = h * 60 + m;
-          const nowMinutes = now.getHours() * 60 + now.getMinutes();
-          return nowMinutes >= slotMinutes;
-        }
+      const slotEndMinutes = parseSlotEndMinutes(slotLabels);
+      if (slotEndMinutes !== null) {
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        return nowMinutes >= slotEndMinutes;
       }
     }
     return false;
+  };
+
+  // Returns true if user is currently playing (slot time is now)
+  const isPlayingNow = (date: string, slotLabels: string[]): boolean => {
+    if (!isSameDay(date)) return false;
+    const firstSlot = slotLabels[0];
+    if (!firstSlot) return false;
+    const startMinutes = parseSlotStartMinutes(firstSlot);
+    const endMinutes = parseSlotEndMinutes(slotLabels);
+    if (startMinutes === null || endMinutes === null) return false;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    return nowMinutes >= startMinutes && nowMinutes < endMinutes;
+  };
+
+  // Returns true if slot is within 30 minutes (upcoming reminder)
+  const isSlotSoon = (date: string, slotLabels: string[]): boolean => {
+    if (!isSameDay(date)) return false;
+    const firstSlot = slotLabels[0];
+    if (!firstSlot) return false;
+    const startMinutes = parseSlotStartMinutes(firstSlot);
+    if (startMinutes === null) return false;
+    const nowMinutes = now.getHours() * 60 + now.getMinutes();
+    // Within 30 mins before slot starts
+    return nowMinutes >= startMinutes - 30 && nowMinutes < startMinutes;
   };
 
   const canShowCancel = (b: (typeof myBookings)[0]) =>
@@ -306,28 +352,89 @@ export default function UserDashboard() {
                 const isActive =
                   b.status !== "cancelled" && b.status !== "rejected";
                 const cancelAllowed = isCancelAllowed(b);
+                const playing = isActive && isPlayingNow(b.date, b.slotLabels);
+                const soon =
+                  isActive && !playing && isSlotSoon(b.date, b.slotLabels);
+                const pastSlot = isSlotPast(b.date, b.slotLabels);
+                const fullyDone = b.paymentStatus === "fullyPaid" && pastSlot;
+
                 return (
                   <motion.div
                     key={b.id}
                     initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: i * 0.07 }}
-                    className={`rounded-2xl p-5 border transition-all duration-200 hover:shadow-neon-green ${
-                      isCancelled
-                        ? "bg-red-950/20 border-red-900/30 border-l-4 border-l-red-500 opacity-70"
-                        : "bg-[#0a1a0c] border-green-900/30 hover:border-green-400/30 border-l-4 border-l-green-500"
+                    className={`rounded-2xl p-5 border transition-all duration-200 ${
+                      playing
+                        ? "bg-[#0d2010] border-green-400/60 border-l-4 border-l-emerald-400 shadow-[0_0_16px_rgba(52,211,153,0.2)]"
+                        : isCancelled
+                          ? "bg-red-950/20 border-red-900/30 border-l-4 border-l-red-500 opacity-70"
+                          : "bg-[#0a1a0c] border-green-900/30 hover:border-green-400/30 hover:shadow-neon-green border-l-4 border-l-green-500"
                     }`}
                     data-ocid={`dashboard.item.${i + 1}`}
                   >
+                    {/* Reminder banner – shown when slot is within 30 minutes */}
+                    {soon && (
+                      <div className="mb-3 flex items-center gap-2 bg-amber-500/15 border border-amber-500/40 rounded-xl px-3 py-2">
+                        <Bell
+                          size={14}
+                          className="text-amber-400 animate-pulse shrink-0"
+                        />
+                        <p className="text-xs font-semibold text-amber-300">
+                          Reminder: Your slot starts very soon! Get ready to
+                          play.
+                        </p>
+                      </div>
+                    )}
+
+                    {/* Playing now banner */}
+                    {playing && (
+                      <div className="mb-3 flex items-center gap-2 bg-emerald-500/15 border border-emerald-500/40 rounded-xl px-3 py-2">
+                        <PlayCircle
+                          size={14}
+                          className="text-emerald-400 animate-pulse shrink-0"
+                        />
+                        <p className="text-xs font-semibold text-emerald-300">
+                          You are playing now! Enjoy your game.
+                        </p>
+                      </div>
+                    )}
+
                     <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
                       <div className="space-y-1.5">
                         <div className="flex items-center gap-2 flex-wrap">
                           <h3 className="font-display font-bold text-lg text-white">
                             {b.turfName}
                           </h3>
+                          {/* Payment status badge – "Done" when fully paid */}
                           <Badge className={`${st.cls} text-white text-xs`}>
                             {st.label}
                           </Badge>
+                          {/* Playing now badge on slot */}
+                          {playing && (
+                            <Badge className="bg-emerald-600 text-white text-xs flex items-center gap-1">
+                              <PlayCircle size={10} />
+                              Playing Now
+                            </Badge>
+                          )}
+                          {/* Slot closed badge – past slot, not yet paid remaining */}
+                          {!playing &&
+                            pastSlot &&
+                            isActive &&
+                            b.paymentStatus !== "fullyPaid" &&
+                            b.paymentType === "advance" && (
+                              <Badge className="bg-gray-600 text-white text-xs flex items-center gap-1">
+                                <Lock size={10} />
+                                Closed
+                              </Badge>
+                            )}
+                          {/* Done badge for fully completed bookings */}
+                          {fullyDone && (
+                            <Badge className="bg-teal-700 text-white text-xs flex items-center gap-1">
+                              <CheckCircle size={10} />
+                              Done
+                            </Badge>
+                          )}
                           {isCancelled && (
                             <Badge variant="destructive" className="text-xs">
                               Cancelled
@@ -338,7 +445,7 @@ export default function UserDashboard() {
                               Rejected
                             </Badge>
                           )}
-                          {b.status === "approved" && (
+                          {b.status === "approved" && !playing && (
                             <Badge className="bg-blue-500 text-white text-xs">
                               Approved
                             </Badge>
@@ -370,12 +477,15 @@ export default function UserDashboard() {
                             non-refundable
                           </p>
                         )}
-                        {isActive && !cancelAllowed && (
-                          <p className="text-xs text-white/30 flex items-center gap-1">
-                            <Clock size={11} />
-                            Cancellation closed (less than 1 hour before slot)
-                          </p>
-                        )}
+                        {isActive &&
+                          !cancelAllowed &&
+                          !playing &&
+                          !pastSlot && (
+                            <p className="text-xs text-white/30 flex items-center gap-1">
+                              <Clock size={11} />
+                              Cancellation closed (less than 1 hour before slot)
+                            </p>
+                          )}
                       </div>
                       <div className="flex flex-col gap-2 items-end">
                         <p className="text-xs text-white/30 font-mono">
@@ -403,6 +513,7 @@ export default function UserDashboard() {
                             Cancel Booking
                           </button>
                         )}
+                        {/* Pay Remaining button — only when slot has passed */}
                         {canPayRemaining(b) && (
                           <button
                             type="button"
@@ -414,6 +525,18 @@ export default function UserDashboard() {
                             Pay Remaining Amount
                           </button>
                         )}
+                        {/* Closed label — slot has passed without paying remaining */}
+                        {!canPayRemaining(b) &&
+                          b.paymentStatus !== "fullyPaid" &&
+                          b.paymentType === "advance" &&
+                          b.remainingAmount > 0 &&
+                          isActive &&
+                          pastSlot && (
+                            <span className="flex items-center gap-1 text-gray-400 text-xs font-semibold px-3 py-1.5 bg-gray-800/60 border border-gray-600/40 rounded-xl">
+                              <Lock size={12} />
+                              Slot Closed
+                            </span>
+                          )}
                       </div>
                     </div>
                   </motion.div>

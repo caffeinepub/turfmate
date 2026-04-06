@@ -1072,7 +1072,7 @@ export default function TurfOwnerDashboard() {
   const bookedCount = dateSlots.filter((s) => s.status === "booked").length;
 
   const statusInfo = (s: string) => {
-    if (s === "fullyPaid") return { label: "Fully Paid", cls: "bg-green-600" };
+    if (s === "fullyPaid") return { label: "Done", cls: "bg-green-600" };
     if (s === "advancePaid")
       return { label: "Advance Paid", cls: "bg-amber-500" };
     return { label: "Remaining Pending", cls: "bg-orange-500" };
